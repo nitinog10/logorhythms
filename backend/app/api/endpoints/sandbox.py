@@ -3,6 +3,7 @@ Live Sandbox Endpoints - Code Execution
 """
 
 import subprocess
+import sys
 import tempfile
 import os
 import asyncio
@@ -27,7 +28,7 @@ settings = get_settings()
 LANGUAGE_CONFIG = {
     "python": {
         "extension": ".py",
-        "command": ["python", "-u"],
+        "command": [sys.executable, "-u"],
         "timeout": 10,
     },
     "javascript": {

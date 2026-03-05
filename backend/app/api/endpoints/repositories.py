@@ -92,7 +92,7 @@ async def get_github_repos(access_token: str) -> List[dict]:
 
 
 async def clone_repository(repo: Repository, access_token: str):
-    """Download repository source code via GitHub API tarball (no git binary needed)"""
+    """Download repository source code via GitHub API tarball, then auto-index."""
     repos_dir = settings.repos_directory
     os.makedirs(repos_dir, exist_ok=True)
     
@@ -137,6 +137,32 @@ async def clone_repository(repo: Repository, access_token: str):
     # Save to persistence
     save_repositories(repositories_db)
     print(f"✅ Downloaded repository {repo.full_name} to {local_path}")
+    
+    # Auto-trigger indexing after clone
+    try:
+        from app.services.indexer import IndexerService
+        indexer = IndexerService()
+        await indexer.index_repository(repo)
+        print(f"✅ Auto-indexed repository {repo.full_name}")
+    except Exception as e:
+        print(f"⚠️ Auto-indexing failed for {repo.full_name}: {e}")
+
+
+async def _ensure_repo_cloned(repo: Repository, access_token: str) -> bool:
+    """Check if repo files exist on disk; if not, re-clone from GitHub.
+    
+    App Runner instances are ephemeral — after a restart the local filesystem
+    is wiped but DynamoDB still holds the repo record with a stale local_path.
+    This helper transparently re-downloads when that happens.
+    
+    Returns True if the repo is available on disk after the call.
+    """
+    if repo.local_path and os.path.exists(repo.local_path):
+        return True
+    
+    print(f"🔄 Re-cloning {repo.full_name} (local files missing)...")
+    await clone_repository(repo, access_token)
+    return repo.local_path is not None and os.path.exists(repo.local_path)
 
 
 @router.get("/github", response_model=List[dict])
@@ -225,7 +251,10 @@ async def connect_repository(
 
 
 @router.get("/", response_model=List[RepositoryResponse])
-async def list_repositories(authorization: str = Header(None)):
+async def list_repositories(
+    background_tasks: BackgroundTasks,
+    authorization: str = Header(None),
+):
     """List connected repositories"""
     user = await get_current_user(authorization)
     
@@ -236,6 +265,11 @@ async def list_repositories(authorization: str = Header(None)):
         repo for repo in repositories_db.values()
         if repo.user_id == user.id
     ]
+    
+    # Trigger background re-clone for any repos whose local files are missing
+    for repo in user_repos:
+        if repo.local_path and not os.path.exists(repo.local_path):
+            background_tasks.add_task(_ensure_repo_cloned, repo, user.access_token)
     
     return [
         RepositoryResponse(
@@ -251,8 +285,43 @@ async def list_repositories(authorization: str = Header(None)):
     ]
 
 
+@router.get("/{repo_id}/status")
+async def get_repository_status(repo_id: str, authorization: str = Header(None)):
+    """Get repository clone/index status (for frontend polling)"""
+    user = await get_current_user(authorization)
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    repo = repositories_db.get(repo_id)
+    
+    if not repo or repo.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Repository not found")
+    
+    has_local_files = bool(repo.local_path and os.path.exists(repo.local_path))
+    
+    if repo.is_indexed and has_local_files:
+        status = "ready"
+    elif has_local_files:
+        status = "indexing"
+    else:
+        status = "cloning"
+    
+    return {
+        "id": repo.id,
+        "status": status,
+        "is_indexed": repo.is_indexed,
+        "indexed_at": repo.indexed_at.isoformat() if repo.indexed_at else None,
+        "has_local_files": has_local_files,
+    }
+
+
 @router.get("/{repo_id}", response_model=RepositoryResponse)
-async def get_repository(repo_id: str, authorization: str = Header(None)):
+async def get_repository(
+    repo_id: str,
+    background_tasks: BackgroundTasks,
+    authorization: str = Header(None),
+):
     """Get repository details"""
     user = await get_current_user(authorization)
     
@@ -263,6 +332,10 @@ async def get_repository(repo_id: str, authorization: str = Header(None)):
     
     if not repo or repo.user_id != user.id:
         raise HTTPException(status_code=404, detail="Repository not found")
+    
+    # Trigger background re-clone if local files are missing
+    if repo.local_path and not os.path.exists(repo.local_path):
+        background_tasks.add_task(_ensure_repo_cloned, repo, user.access_token)
     
     return RepositoryResponse(
         id=repo.id,

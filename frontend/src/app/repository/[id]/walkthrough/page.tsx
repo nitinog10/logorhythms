@@ -82,24 +82,37 @@ export default function WalkthroughPage({ params }: { params: { id: string } }) 
     load()
   }, [params.id, fileFromQuery])
 
-  // Fetch code when selected file changes
+  // Fetch code and check for existing walkthrough when selected file changes
   useEffect(() => {
     if (!selectedFile) return
     let cancelled = false
 
-    async function loadCode() {
+    async function loadCodeAndWalkthrough() {
       setIsLoadingCode(true)
       setScript(null)
       try {
-        const content = await files.getContent(params.id, selectedFile)
-        if (!cancelled) setCodeContent(content)
+        // Fetch code content and existing walkthroughs in parallel
+        const [content, existingWalkthroughs] = await Promise.all([
+          files.getContent(params.id, selectedFile),
+          walkthroughs.getForFile(params.id, selectedFile).catch(() => [] as WalkthroughScript[]),
+        ])
+
+        if (cancelled) return
+
+        setCodeContent(content)
+
+        // Auto-load the most recent existing walkthrough if available
+        if (existingWalkthroughs.length > 0) {
+          const latest = existingWalkthroughs[existingWalkthroughs.length - 1]
+          setScript(latest)
+        }
       } catch {
         if (!cancelled) setCodeContent('// Failed to load file content')
       } finally {
         if (!cancelled) setIsLoadingCode(false)
       }
     }
-    loadCode()
+    loadCodeAndWalkthrough()
     return () => { cancelled = true }
   }, [selectedFile, params.id])
 
@@ -127,21 +140,21 @@ export default function WalkthroughPage({ params }: { params: { id: string } }) 
   // Map WalkthroughScript (snake_case) to the camelCase shape WalkthroughPlayer expects
   const playerScript = script
     ? {
-        id: script.id,
-        filePath: script.file_path,
-        title: script.title,
-        summary: script.summary,
-        totalDuration: script.total_duration,
-        segments: script.segments.map((s) => ({
-          id: s.id,
-          order: s.order,
-          text: s.text,
-          startLine: s.start_line,
-          endLine: s.end_line,
-          highlightLines: s.highlight_lines,
-          durationEstimate: s.duration_estimate,
-        })),
-      }
+      id: script.id,
+      filePath: script.file_path,
+      title: script.title,
+      summary: script.summary,
+      totalDuration: script.total_duration,
+      segments: script.segments.map((s) => ({
+        id: s.id,
+        order: s.order,
+        text: s.text,
+        startLine: s.start_line,
+        endLine: s.end_line,
+        highlightLines: s.highlight_lines,
+        durationEstimate: s.duration_estimate,
+      })),
+    }
     : null
 
   // Loading state

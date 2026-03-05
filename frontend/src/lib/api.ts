@@ -49,7 +49,7 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
-    
+
     // Handle unauthorized errors - only clear token for auth-specific endpoints
     // to prevent transient errors from logging the user out
     if (response.status === 401) {
@@ -58,7 +58,7 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
         localStorage.removeItem('token')
       }
     }
-    
+
     throw new APIError(
       errorData.detail || 'An error occurred',
       response.status,
@@ -79,16 +79,16 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
 
 export const auth = {
   getGitHubAuthUrl: () => request<{ auth_url: string; state: string }>('/auth/github'),
-  
+
   getMe: () => request<{
     id: string
     username: string
     email: string | null
     avatar_url: string | null
   }>('/auth/me'),
-  
+
   logout: () => request('/auth/logout', { method: 'POST' }),
-  
+
   refresh: () => request<{
     token: string
     user: {
@@ -98,7 +98,7 @@ export const auth = {
       avatar_url: string | null
     }
   }>('/auth/refresh', { method: 'POST' }),
-  
+
   verify: () => request<{
     valid: boolean
     user: {
@@ -137,19 +137,27 @@ export interface GitHubRepository {
 
 export const repositories = {
   listGitHub: () => request<GitHubRepository[]>('/repositories/github'),
-  
+
   connect: (fullName: string) =>
     request<Repository>('/repositories/connect', {
       method: 'POST',
       body: { full_name: fullName },
     }),
-  
+
   list: () => request<Repository[]>('/repositories/'),
-  
+
   get: (id: string) => request<Repository>(`/repositories/${id}`),
-  
+
+  getStatus: (id: string) => request<{
+    id: string
+    status: 'cloning' | 'indexing' | 'ready'
+    is_indexed: boolean
+    indexed_at: string | null
+    has_local_files: boolean
+  }>(`/repositories/${id}/status`),
+
   index: (id: string) => request(`/repositories/${id}/index`, { method: 'POST' }),
-  
+
   delete: (id: string) => request(`/repositories/${id}`, { method: 'DELETE' }),
 }
 
@@ -179,10 +187,10 @@ export interface ASTNode {
 
 export const files = {
   getTree: (repoId: string) => request<FileNode[]>(`/files/${repoId}/tree`),
-  
+
   getContent: async (repoId: string, path: string): Promise<string> => {
     const token = getAuthToken()
-    
+
     const response = await fetch(
       `${API_BASE_URL}/files/${repoId}/content?path=${encodeURIComponent(path)}`,
       {
@@ -192,17 +200,17 @@ export const files = {
         credentials: 'include',
       }
     )
-    
+
     if (!response.ok) {
       if (response.status === 401 && typeof window !== 'undefined') {
         localStorage.removeItem('token')
       }
       throw new APIError('Failed to fetch file content', response.status)
     }
-    
+
     return response.text()
   },
-  
+
   getAST: (repoId: string, path: string) =>
     request<ASTNode[]>(`/files/${repoId}/ast?path=${encodeURIComponent(path)}`),
 
@@ -316,14 +324,14 @@ export const walkthroughs = {
         view_mode: viewMode,
       },
     }),
-  
+
   get: (id: string) => request<WalkthroughScript>(`/walkthroughs/${id}`),
-  
+
   getAudio: (id: string) => request<AudioWalkthrough>(`/walkthroughs/${id}/audio`),
-  
+
   getForFile: (repoId: string, filePath: string) =>
     request<WalkthroughScript[]>(`/walkthroughs/file/${repoId}?file_path=${encodeURIComponent(filePath)}`),
-  
+
   delete: (id: string) => request(`/walkthroughs/${id}`, { method: 'DELETE' }),
 }
 
@@ -349,9 +357,9 @@ export const diagrams = {
         file_path: filePath,
       },
     }),
-  
+
   get: (id: string) => request<Diagram>(`/diagrams/${id}`),
-  
+
   getForRepository: (repoId: string) =>
     request<Diagram[]>(`/diagrams/repository/${repoId}`),
 }
@@ -373,12 +381,12 @@ export const sandbox = {
       method: 'POST',
       body: { code, language, variables },
     }),
-  
+
   getLanguages: () =>
     request<{ languages: string[]; details: Record<string, { extension: string; timeout: number }> }>(
       '/sandbox/languages'
     ),
-  
+
   validate: (code: string, language: string) =>
     request<{ success: boolean; message: string }>('/sandbox/validate', {
       method: 'POST',

@@ -70,6 +70,28 @@ export default function RepositoryPage({ params }: { params: { id: string } }) {
     fetchFiles()
   }, [fetchData, fetchFiles])
 
+  // Poll for index status when repo is not yet indexed
+  useEffect(() => {
+    if (!repo || repo.is_indexed) return
+
+    const interval = setInterval(async () => {
+      try {
+        const status = await repositories.getStatus(params.id)
+        if (status.is_indexed) {
+          // Repo is now indexed — refresh everything and stop polling
+          const updatedRepo = await repositories.get(params.id)
+          setRepo(updatedRepo)
+          fetchFiles()
+          clearInterval(interval)
+        }
+      } catch {
+        // Silently ignore polling errors
+      }
+    }, 5000)
+
+    return () => clearInterval(interval)
+  }, [repo, params.id, fetchFiles])
+
   const handleReindex = async () => {
     setIsReindexing(true)
     try {
@@ -231,22 +253,20 @@ export default function RepositoryPage({ params }: { params: { id: string } }) {
           <div className="flex items-center gap-1 bg-dv-surface rounded-xl p-1 mb-6 w-fit">
             <button
               onClick={() => setActiveTab('files')}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === 'files'
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'files'
                   ? 'bg-dv-accent text-white'
                   : 'text-dv-text-muted hover:text-dv-text hover:bg-dv-elevated/60'
-              }`}
+                }`}
             >
               <FileCode className="w-4 h-4" />
               Files
             </button>
             <button
               onClick={() => setActiveTab('documentation')}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === 'documentation'
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'documentation'
                   ? 'bg-dv-accent text-white'
                   : 'text-dv-text-muted hover:text-dv-text hover:bg-dv-elevated/60'
-              }`}
+                }`}
             >
               <BookOpen className="w-4 h-4" />
               Documentation
@@ -256,111 +276,111 @@ export default function RepositoryPage({ params }: { params: { id: string } }) {
           {activeTab === 'documentation' ? (
             <DocumentationPanel repoId={params.id} />
           ) : (
-          <div className="grid lg:grid-cols-3 gap-6">
-            {/* File list */}
-            <div className="lg:col-span-2">
-              <h3 className="text-sm font-medium text-dv-text-secondary uppercase tracking-wider mb-4">
-                Files
-              </h3>
-
-              {isFilesLoading ? (
-                <div className="card flex items-center justify-center py-12">
-                  <Loader2 className="w-5 h-5 text-dv-accent animate-spin mr-3" />
-                  <span className="text-sm text-dv-text-muted">Loading file tree…</span>
-                </div>
-              ) : flatFiles.length === 0 ? (
-                <div className="card text-center py-12">
-                  <FileCode className="w-8 h-8 text-dv-text-muted mx-auto mb-3" />
-                  <p className="text-sm text-dv-text-muted mb-4">
-                    {repo.is_indexed ? 'No files found' : 'Index this repository to browse files'}
-                  </p>
-                  {!repo.is_indexed && (
-                    <button onClick={handleReindex} disabled={isReindexing} className="btn-primary inline-flex items-center gap-2">
-                      <Sparkles className="w-4 h-4" /> Index Now
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="card p-0 divide-y divide-dv-border/30 overflow-hidden">
-                  {flatFiles.map((file, i) => (
-                    <motion.div
-                      key={file.path}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: i * 0.02 }}
-                      className="flex items-center gap-3 px-4 py-3 hover:bg-dv-elevated/40 transition-colors group"
-                    >
-                      <File className="w-4 h-4 text-dv-text-muted flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{file.name}</p>
-                        <p className="text-xs text-dv-text-muted truncate">{file.path}</p>
-                      </div>
-                      {file.language && (
-                        <span className="text-xs text-dv-text-muted">{file.language}</span>
-                      )}
-                      <Link
-                        href={`/repository/${params.id}/walkthrough?file=${encodeURIComponent(file.path)}`}
-                        className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium bg-dv-accent/10 text-dv-accent hover:bg-dv-accent/20 transition-colors opacity-0 group-hover:opacity-100"
-                      >
-                        <Play className="w-3 h-3" /> Walkthrough
-                      </Link>
-                    </motion.div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Sidebar */}
-            <div className="space-y-4">
-              {/* Quick actions */}
-              <div className="card">
-                <h3 className="text-sm font-medium mb-3">Quick Actions</h3>
-                <div className="space-y-2">
-                  <Link
-                    href={`/repository/${params.id}/walkthrough`}
-                    className="flex items-center gap-3 p-3 rounded-xl bg-dv-elevated/50 hover:bg-dv-elevated transition-colors group"
-                  >
-                    <Play className="w-4 h-4 text-dv-accent" />
-                    <span className="text-sm">Start Walkthrough</span>
-                    <ChevronRight className="w-3.5 h-3.5 text-dv-text-muted ml-auto group-hover:translate-x-0.5 transition-transform" />
-                  </Link>
-                  <button
-                    onClick={handleReindex}
-                    disabled={isReindexing}
-                    className="flex items-center gap-3 p-3 rounded-xl bg-dv-elevated/50 hover:bg-dv-elevated transition-colors w-full text-left"
-                  >
-                    {isReindexing ? <Loader2 className="w-4 h-4 animate-spin text-dv-text-muted" /> : <RefreshCw className="w-4 h-4 text-dv-text-muted" />}
-                    <span className="text-sm">Re-index Repository</span>
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('documentation')}
-                    className="flex items-center gap-3 p-3 rounded-xl bg-dv-elevated/50 hover:bg-dv-elevated transition-colors w-full text-left group"
-                  >
-                    <BookOpen className="w-4 h-4 text-dv-purple" />
-                    <span className="text-sm">View Documentation</span>
-                    <ChevronRight className="w-3.5 h-3.5 text-dv-text-muted ml-auto group-hover:translate-x-0.5 transition-transform" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Danger zone */}
-              <div className="card border-dv-error/20">
-                <h3 className="text-sm font-medium text-dv-error mb-3 flex items-center gap-2">
-                  <Trash2 className="w-3.5 h-3.5" /> Danger Zone
+            <div className="grid lg:grid-cols-3 gap-6">
+              {/* File list */}
+              <div className="lg:col-span-2">
+                <h3 className="text-sm font-medium text-dv-text-secondary uppercase tracking-wider mb-4">
+                  Files
                 </h3>
-                <p className="text-xs text-dv-text-muted mb-3">
-                  Disconnect this repository and delete all walkthroughs.
-                </p>
-                <button
-                  onClick={handleDelete}
-                  disabled={isDeleting}
-                  className="w-full py-2 rounded-lg border border-dv-error/40 text-dv-error text-xs font-medium hover:bg-dv-error/10 transition-colors disabled:opacity-50"
-                >
-                  {isDeleting ? 'Disconnecting…' : 'Disconnect Repository'}
-                </button>
+
+                {isFilesLoading ? (
+                  <div className="card flex items-center justify-center py-12">
+                    <Loader2 className="w-5 h-5 text-dv-accent animate-spin mr-3" />
+                    <span className="text-sm text-dv-text-muted">Loading file tree…</span>
+                  </div>
+                ) : flatFiles.length === 0 ? (
+                  <div className="card text-center py-12">
+                    <FileCode className="w-8 h-8 text-dv-text-muted mx-auto mb-3" />
+                    <p className="text-sm text-dv-text-muted mb-4">
+                      {repo.is_indexed ? 'No files found' : 'Index this repository to browse files'}
+                    </p>
+                    {!repo.is_indexed && (
+                      <button onClick={handleReindex} disabled={isReindexing} className="btn-primary inline-flex items-center gap-2">
+                        <Sparkles className="w-4 h-4" /> Index Now
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="card p-0 divide-y divide-dv-border/30 overflow-hidden">
+                    {flatFiles.map((file, i) => (
+                      <motion.div
+                        key={file.path}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: i * 0.02 }}
+                        className="flex items-center gap-3 px-4 py-3 hover:bg-dv-elevated/40 transition-colors group"
+                      >
+                        <File className="w-4 h-4 text-dv-text-muted flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{file.name}</p>
+                          <p className="text-xs text-dv-text-muted truncate">{file.path}</p>
+                        </div>
+                        {file.language && (
+                          <span className="text-xs text-dv-text-muted">{file.language}</span>
+                        )}
+                        <Link
+                          href={`/repository/${params.id}/walkthrough?file=${encodeURIComponent(file.path)}`}
+                          className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium bg-dv-accent/10 text-dv-accent hover:bg-dv-accent/20 transition-colors opacity-0 group-hover:opacity-100"
+                        >
+                          <Play className="w-3 h-3" /> Walkthrough
+                        </Link>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Sidebar */}
+              <div className="space-y-4">
+                {/* Quick actions */}
+                <div className="card">
+                  <h3 className="text-sm font-medium mb-3">Quick Actions</h3>
+                  <div className="space-y-2">
+                    <Link
+                      href={`/repository/${params.id}/walkthrough`}
+                      className="flex items-center gap-3 p-3 rounded-xl bg-dv-elevated/50 hover:bg-dv-elevated transition-colors group"
+                    >
+                      <Play className="w-4 h-4 text-dv-accent" />
+                      <span className="text-sm">Start Walkthrough</span>
+                      <ChevronRight className="w-3.5 h-3.5 text-dv-text-muted ml-auto group-hover:translate-x-0.5 transition-transform" />
+                    </Link>
+                    <button
+                      onClick={handleReindex}
+                      disabled={isReindexing}
+                      className="flex items-center gap-3 p-3 rounded-xl bg-dv-elevated/50 hover:bg-dv-elevated transition-colors w-full text-left"
+                    >
+                      {isReindexing ? <Loader2 className="w-4 h-4 animate-spin text-dv-text-muted" /> : <RefreshCw className="w-4 h-4 text-dv-text-muted" />}
+                      <span className="text-sm">Re-index Repository</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('documentation')}
+                      className="flex items-center gap-3 p-3 rounded-xl bg-dv-elevated/50 hover:bg-dv-elevated transition-colors w-full text-left group"
+                    >
+                      <BookOpen className="w-4 h-4 text-dv-purple" />
+                      <span className="text-sm">View Documentation</span>
+                      <ChevronRight className="w-3.5 h-3.5 text-dv-text-muted ml-auto group-hover:translate-x-0.5 transition-transform" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Danger zone */}
+                <div className="card border-dv-error/20">
+                  <h3 className="text-sm font-medium text-dv-error mb-3 flex items-center gap-2">
+                    <Trash2 className="w-3.5 h-3.5" /> Danger Zone
+                  </h3>
+                  <p className="text-xs text-dv-text-muted mb-3">
+                    Disconnect this repository and delete all walkthroughs.
+                  </p>
+                  <button
+                    onClick={handleDelete}
+                    disabled={isDeleting}
+                    className="w-full py-2 rounded-lg border border-dv-error/40 text-dv-error text-xs font-medium hover:bg-dv-error/10 transition-colors disabled:opacity-50"
+                  >
+                    {isDeleting ? 'Disconnecting…' : 'Disconnect Repository'}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
           )}
         </div>
       </main>

@@ -37,7 +37,7 @@ EXPOSE ${PORT}
 CMD gunicorn app.main:app \
     --worker-class uvicorn.workers.UvicornWorker \
     --bind 0.0.0.0:${PORT} \
-    --workers 2 \
+    --workers 1 \
     --timeout 120 \
     --graceful-timeout 30 \
     --keep-alive 5

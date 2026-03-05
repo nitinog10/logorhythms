@@ -49,6 +49,18 @@ export default function DashboardPage() {
     fetchConnectedRepos()
   }, [fetchConnectedRepos])
 
+  // Auto-refresh when repos are still being indexed
+  useEffect(() => {
+    const hasPending = connectedRepos.some((r) => !r.is_indexed)
+    if (!hasPending || isLoading) return
+
+    const interval = setInterval(() => {
+      fetchConnectedRepos()
+    }, 8000)
+
+    return () => clearInterval(interval)
+  }, [connectedRepos, isLoading, fetchConnectedRepos])
+
   const filteredRepos = connectedRepos.filter((repo) =>
     repo.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     repo.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||

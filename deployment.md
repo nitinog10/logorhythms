@@ -137,7 +137,7 @@ aws apprunner create-service \
         "CodeConfigurationValues": {
           "Runtime": "PYTHON_3",
           "Port": "8000",
-          "StartCommand": "gunicorn app.main:app --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 --workers 2 --timeout 120",
+          "StartCommand": "gunicorn app.main:app --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 --workers 1 --timeout 120",
           "BuildCommand": "pip install -r requirements.txt",
           "RuntimeEnvironmentVariables": {
             "SECRET_KEY": "YOUR_SECRET_KEY",
