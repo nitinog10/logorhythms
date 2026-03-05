@@ -162,7 +162,8 @@ flowchart TB
     subgraph Storage["💾 Data Layer"]
         ChromaDB[(ChromaDB Vector Store)]
         FileSystem[(Local File System)]
-        Persistence[(JSON Persistence)]
+        DynamoDB[(AWS DynamoDB)]
+        S3[(AWS S3)]
     end
 
     subgraph External["🌐 External Services"]
@@ -190,7 +191,8 @@ flowchart TB
     DocGen --> OpenAI
     DepAnalyzer --> FileSystem
 
-    Persistence --> FileSystem
+    DynamoDB --> FileSystem
+    AudioGen --> S3
 
     style Client fill:#0d1117,stroke:#58a6ff,stroke-width:2px
     style API fill:#0d1117,stroke:#a371f7,stroke-width:2px
@@ -289,7 +291,7 @@ sequenceDiagram
 | **Vector DB** | ChromaDB | Semantic code search (RAG) |
 | **Graph** | networkx | Dependency DAG + impact analysis |
 | **Auth** | GitHub OAuth + JWT (jose) | Secure authentication |
-| **Persistence** | JSON file-based | Walkthroughs, audio, docs survive restarts |
+| **Persistence** | AWS DynamoDB + S3 | Users, repos, walkthroughs, audio survive restarts |
 
 ---
 
@@ -315,9 +317,10 @@ All authenticated endpoints require: `Authorization: Bearer <jwt_token>`
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/repositories/github` | List repos from user's GitHub account |
-| `POST` | `/repositories/connect` | Clone & connect a repo `{ "full_name": "user/repo" }` |
+| `POST` | `/repositories/connect` | Clone, index & connect a repo `{ "full_name": "user/repo" }` |
 | `GET` | `/repositories/` | List all connected repositories |
 | `GET` | `/repositories/{id}` | Get single repository details |
+| `GET` | `/repositories/{id}/status` | Poll clone/index status (`cloning` → `indexing` → `ready`) |
 | `POST` | `/repositories/{id}/index` | Trigger Tree-sitter parsing + ChromaDB indexing |
 | `DELETE` | `/repositories/{id}` | Remove repository and all data |
 
@@ -500,9 +503,15 @@ OPENAI_API_KEY=sk-...
 ELEVENLABS_API_KEY=                         # Leave empty for free Edge-TTS
 ELEVENLABS_VOICE_ID=21m00Tcm4TlvDq8ikWAM
 
-# Storage
-CHROMA_PERSIST_DIRECTORY=./chroma_db
-REPOS_DIRECTORY=./repos
+# AWS Persistence (required for production)
+AWS_REGION=ap-south-1
+AWS_ACCESS_KEY_ID=your-aws-access-key
+AWS_SECRET_ACCESS_KEY=your-aws-secret-key
+DYNAMODB_TABLE_PREFIX=docusense
+S3_AUDIO_BUCKET=docusense-audio
+
+# Frontend URL (for CORS and OAuth redirect)
+FRONTEND_URL=http://localhost:3000
 ```
 
 ### 5. Open the App
@@ -544,12 +553,11 @@ DocuVerse-Ai/
 │   │   │   ├── diagram_generator.py  # Mermaid code generation
 │   │   │   ├── dependency_analyzer.py # networkx DAG + impact
 │   │   │   ├── indexer.py            # Repo file walker + indexer
-│   │   │   └── persistence.py        # JSON file persistence layer
+│   │   │   └── persistence.py        # AWS DynamoDB + S3 persistence layer
 │   │   └── models/
 │   │       └── schemas.py            # 60+ Pydantic models
 │   ├── chroma_db/                    # ChromaDB persistent storage
-│   ├── repos/                        # Cloned repositories
-│   │   └── .persistence/             # Persisted walkthroughs, audio, docs
+│   ├── repos/                        # Cloned repositories (ephemeral on App Runner)
 │   └── requirements.txt
 │
 ├── frontend/                         # Next.js 14 + TypeScript
@@ -601,9 +609,9 @@ DocuVerse-Ai/
 ```
 
 1. **Connect** → Sign in with GitHub → select any repository (public or private)
-2. **Analyze** → Backend clones the repo → Tree-sitter parses every file → ChromaDB indexes code chunks → Dependency graph is built
+2. **Analyze** → Backend clones the repo → Tree-sitter parses every file → ChromaDB indexes code chunks → Dependency graph is built (all automatic after connect)
 3. **Explore** → Browse the file tree → view syntax-highlighted code → inspect AST structure → see dependency connections
-4. **Play** → Select a file → click "Generate Walkthrough" → AI voice narrates while code auto-scrolls and highlights in real-time
+4. **Play** → Select a file → existing walkthrough loads automatically, or click "Generate Walkthrough" → AI voice narrates while code auto-scrolls and highlights in real-time
 5. **Verify** → Run code in the Sandbox → analyze change impact → export diagrams → generate full documentation
 
 ---
@@ -699,7 +707,9 @@ erDiagram
 | **Parallel documentation** | 6 files documented concurrently via async semaphore |
 | **Instant playback** | Browser TTS starts immediately; AI voice upgrades seamlessly in background |
 | **RAG context** | ChromaDB retrieves only relevant chunks (not entire codebase) |
-| **Persistent caching** | Walkthroughs, audio MP3s, documentation cached to disk — zero regeneration |
+| **Persistent caching** | Walkthroughs, audio MP3s, documentation cached to DynamoDB + S3 — zero regeneration |
+| **Auto-index on connect** | Repositories are cloned + indexed automatically — no manual "Index" step |
+| **Transparent re-clone** | If App Runner instance restarts, repos are re-downloaded from GitHub on first access |
 | **Three-tier TTS** | ElevenLabs (premium) → Edge-TTS (free) → Browser TTS (instant) |
 | **Background tasks** | Audio generation runs as FastAPI BackgroundTask — non-blocking API |
 | **Lazy service init** | Services created in lifespan, shared via `app.state` |
