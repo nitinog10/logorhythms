@@ -235,7 +235,7 @@ export default function WalkthroughPage({ params }: { params: { id: string } }) 
         {/* Impact takes the full page when active */}
         {activePanel === 'impact' ? (
           <div className="flex-1 overflow-hidden">
-            <ImpactPanel repositoryId={params.id} filePath={selectedFile} />
+            <ImpactPanel repositoryId={params.id} filePath={selectedFile} fullName={repo?.full_name} />
           </div>
         ) : (
           <>

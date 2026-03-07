@@ -268,7 +268,7 @@ export default function RepositoryPage({ params }: { params: { id: string } }) {
           </div>
 
           {activeTab === 'documentation' ? (
-            <DocumentationPanel repoId={params.id} />
+            <DocumentationPanel repoId={params.id} fullName={repo?.full_name} />
           ) : (
             <div className="grid lg:grid-cols-3 gap-6">
               {/* File list */}

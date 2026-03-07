@@ -23,6 +23,7 @@ import {
 import Link from 'next/link'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { ConnectRepoModal } from '@/components/dashboard/ConnectRepoModal'
+import { CreateRepoModal } from '@/components/github/CreateRepoModal'
 import { repositories, Repository } from '@/lib/api'
 import { useUserStore } from '@/lib/store'
 import { formatRelativeTime } from '@/lib/utils'
@@ -57,6 +58,7 @@ const langColor: Record<string, string> = {
 
 export default function DashboardPage() {
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false)
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [mounted, setMounted] = useState(false)
   const [connectedRepos, setConnectedRepos] = useState<Repository[]>([])
@@ -132,6 +134,13 @@ export default function DashboardPage() {
               >
                 <Settings className="w-4 h-4" />
               </Link>
+              <button
+                onClick={() => setIsCreateModalOpen(true)}
+                className="flex items-center gap-2 text-[13px] font-medium px-4 py-1.5 rounded-full bg-[var(--glass-5)] backdrop-blur-xl border border-dv-border text-dv-text/50 hover:bg-[var(--glass-10)] hover:text-dv-text/70 active:scale-[0.97] transition-all"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Create New
+              </button>
               <button
                 onClick={() => setIsConnectModalOpen(true)}
                 className="flex items-center gap-2 text-[13px] font-medium bg-[var(--btn-solid-bg)] text-[var(--btn-solid-text)] px-4 py-1.5 rounded-full hover:bg-[var(--btn-solid-hover)] active:scale-[0.97] transition-all shadow-[var(--btn-solid-shadow)]"
@@ -321,6 +330,11 @@ export default function DashboardPage() {
         isOpen={isConnectModalOpen}
         onClose={() => setIsConnectModalOpen(false)}
         onConnected={fetchConnectedRepos}
+      />
+      <CreateRepoModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onCreated={fetchConnectedRepos}
       />
     </div>
   )

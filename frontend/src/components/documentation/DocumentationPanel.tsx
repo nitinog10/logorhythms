@@ -17,6 +17,7 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import { documentation } from '@/lib/api'
+import { PushDocsButton } from '@/components/github/PushDocsButton'
 
 // ──────────────────────────────────────────────
 // Types
@@ -46,7 +47,7 @@ interface RepositoryDocumentation {
 // Component
 // ──────────────────────────────────────────────
 
-export default function DocumentationPanel({ repoId }: { repoId: string }) {
+export default function DocumentationPanel({ repoId, fullName }: { repoId: string; fullName?: string }) {
   const [docs, setDocs] = useState<RepositoryDocumentation | null>(null)
   const [status, setStatus] = useState<'idle' | 'generating' | 'ready' | 'error'>('idle')
   const [activeTab, setActiveTab] = useState<'overview' | 'architecture' | 'files' | 'dependencies' | 'tree'>('overview')
@@ -200,6 +201,9 @@ export default function DocumentationPanel({ repoId }: { repoId: string }) {
         >
           <Download className="w-3.5 h-3.5" /> Export .md
         </button>
+        {fullName && (
+          <PushDocsButton repoId={repoId} fullName={fullName} docs={docs} />
+        )}
       </div>
 
       {/* Content */}

@@ -19,6 +19,8 @@ import {
   ArrowRight,
 } from 'lucide-react'
 import { files, ImpactAnalysis, CodebaseImpact } from '@/lib/api'
+import { CreateIssueButton } from '@/components/github/CreateIssueButton'
+import { ImplementFixButton } from '@/components/github/ImplementFixButton'
 
 const ease = [0.25, 0.1, 0.25, 1] as const
 
@@ -27,9 +29,10 @@ type AnalysisMode = 'file' | 'codebase'
 interface ImpactPanelProps {
   repositoryId: string
   filePath: string
+  fullName?: string
 }
 
-export function ImpactPanel({ repositoryId, filePath }: ImpactPanelProps) {
+export function ImpactPanel({ repositoryId, filePath, fullName }: ImpactPanelProps) {
   const [mode, setMode] = useState<AnalysisMode>('codebase')
   const [impact, setImpact] = useState<ImpactAnalysis | null>(null)
   const [codebaseImpact, setCodebaseImpact] = useState<CodebaseImpact | null>(null)
@@ -325,6 +328,20 @@ export function ImpactPanel({ repositoryId, filePath }: ImpactPanelProps) {
                 Refresh
               </button>
             )}
+
+            {/* GitHub: Create Issue */}
+            {fullName && (impact || codebaseImpact) && (() => {
+              const [owner, repo] = fullName.split('/')
+              return owner && repo ? (
+                <CreateIssueButton
+                  owner={owner}
+                  repo={repo}
+                  impactData={impact}
+                  codebaseData={codebaseImpact}
+                  mode={mode}
+                />
+              ) : null
+            })()}
           </div>
         </div>
       </div>
@@ -431,6 +448,19 @@ export function ImpactPanel({ repositoryId, filePath }: ImpactPanelProps) {
                     </li>
                   ))}
                 </ol>
+                {fullName && codebaseImpact.recommended_actions.length > 0 && (() => {
+                  const [owner, repo] = fullName.split('/')
+                  return owner && repo ? (
+                    <div className="mt-4 pt-4 border-t border-dv-border-subtle">
+                      <ImplementFixButton
+                        owner={owner}
+                        repo={repo}
+                        suggestions={codebaseImpact.recommended_actions}
+                        impactSummary={codebaseImpact.brief_script}
+                      />
+                    </div>
+                  ) : null
+                })()}
               </div>
             </motion.div>
 
@@ -635,6 +665,19 @@ export function ImpactPanel({ repositoryId, filePath }: ImpactPanelProps) {
                     </li>
                   ))}
                 </ol>
+                {fullName && impact.recommended_refactor_steps.length > 0 && (() => {
+                  const [owner, repo] = fullName.split('/')
+                  return owner && repo ? (
+                    <div className="mt-4 pt-4 border-t border-dv-border-subtle">
+                      <ImplementFixButton
+                        owner={owner}
+                        repo={repo}
+                        suggestions={impact.recommended_refactor_steps}
+                        impactSummary={`File: ${impact.target_file}, Risk: ${impact.risk_score}/100`}
+                      />
+                    </div>
+                  ) : null
+                })()}
               </div>
             </motion.div>
 
