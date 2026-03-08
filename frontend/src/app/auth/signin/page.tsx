@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Code2, ArrowRight, Loader2, Sparkles } from 'lucide-react'
+import { Code2, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { auth } from '@/lib/api'
 import toast from 'react-hot-toast'
@@ -93,29 +93,6 @@ export default function SignInPage() {
           {error && (
             <p className="mt-3 text-[12px] text-dv-error">{error}</p>
           )}
-
-          {/* Divider */}
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-dv-border" />
-            </div>
-            <div className="relative flex justify-center">
-              <span className="px-3 text-[11px] text-dv-text/20 bg-[rgba(10,10,10,0.8)]">or</span>
-            </div>
-          </div>
-
-          {/* Demo button */}
-          <Link
-            href="/dashboard"
-            className="w-full flex items-center justify-center gap-2 py-3 px-5 rounded-[14px]
-                     bg-[var(--glass-6)] backdrop-blur-xl border border-dv-border text-[15px] font-medium text-dv-text/60
-                     hover:bg-[var(--glass-10)] hover:border-dv-border hover:text-dv-text/80
-                     active:scale-[0.97] transition-all group"
-          >
-            <Sparkles className="w-4 h-4 text-dv-accent" />
-            Explore Demo
-            <ArrowRight className="w-3.5 h-3.5 text-dv-text/25 group-hover:translate-x-0.5 transition-transform" />
-          </Link>
         </motion.div>
 
         {/* Footer */}
