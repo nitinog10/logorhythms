@@ -255,6 +255,21 @@ async def create_repo_with_upload(
     # ── Create DocuVerse Repository record ─────────────────────
     language = _guess_language(local_path)
     repo_id = f"repo_{uuid.uuid4().hex[:12]}"
+
+    # Rename the temp extraction directory to the final repo_id-based
+    # path so that the local_path is consistent with other repo types
+    # and can be reliably located by documentation / walkthrough
+    # endpoints.
+    final_path = os.path.join(repos_dir, repo_id)
+    try:
+        if os.path.exists(final_path):
+            shutil.rmtree(final_path)
+        os.rename(local_path, final_path)
+        local_path = final_path
+    except Exception as rename_err:
+        logger.warning("Could not rename %s → %s: %s", local_path, final_path, rename_err)
+        # Continue with the original temp path — it still works
+
     repo = Repository(
         id=repo_id,
         user_id=user.id,

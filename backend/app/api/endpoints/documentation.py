@@ -8,7 +8,6 @@ import logging
 import os
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Header
 
-from app.config import get_settings
 from app.services.documentation_generator import DocumentationGenerator
 from app.services.persistence import save_documentation_cache, load_documentation_cache
 from app.api.endpoints.auth import get_current_user
@@ -25,18 +24,20 @@ print(f"📂 Loaded documentation cache for {len(docs_cache)} repositories from 
 doc_generator = DocumentationGenerator()
 
 
-def _repo_path(repo_id: str) -> str:
-    settings = get_settings()
-    return f"{settings.repos_directory}/{repo_id}"
+def _get_repo_local_path(repo_id: str) -> str | None:
+    """Return the actual local_path from the repo record (works for both
+    GitHub-cloned and upload-created repositories)."""
+    repo = repositories_db.get(repo_id)
+    return repo.local_path if repo else None
 
 
 async def _generate_task(repo_id: str):
     """Background task that generates documentation and caches it."""
     try:
-        path = _repo_path(repo_id)
-        if not os.path.exists(path):
+        path = _get_repo_local_path(repo_id)
+        if not path or not os.path.exists(path):
             raise FileNotFoundError(
-                f"Repository files not found at '{path}'. "
+                f"Repository files not found (repo_id={repo_id}). "
                 "The server may have restarted. Please go back and re-open the repository to trigger a re-download."
             )
         result = await doc_generator.generate_repository_docs(path)
@@ -69,8 +70,8 @@ async def generate_docs(repo_id: str, background_tasks: BackgroundTasks, authori
         raise HTTPException(status_code=404, detail="Repository not found")
 
     # Ensure repo files are on disk; re-clone from GitHub if needed
-    path = _repo_path(repo_id)
-    if not os.path.exists(path):
+    path = repo.local_path
+    if not path or not os.path.exists(path):
         if repo.source == "upload":
             raise HTTPException(
                 status_code=400,
@@ -78,7 +79,10 @@ async def generate_docs(repo_id: str, background_tasks: BackgroundTasks, authori
             )
         # Re-clone from GitHub (App Runner restart wiped local files)
         await _ensure_repo_cloned(repo, user.access_token)
-        if not os.path.exists(path):
+        # Refresh path after re-clone (local_path may have been updated)
+        repo = repositories_db.get(repo_id)
+        path = repo.local_path if repo else None
+        if not path or not os.path.exists(path):
             raise HTTPException(
                 status_code=500,
                 detail="Failed to re-download repository files. Please try reconnecting the repository.",
@@ -119,15 +123,18 @@ async def get_file_docs(repo_id: str, path: str, authorization: str = Header(Non
     if not repo or repo.user_id != user.id:
         raise HTTPException(status_code=404, detail="Repository not found")
 
-    repo_path = _repo_path(repo_id)
-    if not os.path.exists(repo_path):
+    repo_path = repo.local_path
+    if not repo_path or not os.path.exists(repo_path):
         if repo.source == "upload":
             raise HTTPException(
                 status_code=400,
                 detail="Uploaded project files are no longer available. Please re-upload the ZIP file.",
             )
         await _ensure_repo_cloned(repo, user.access_token)
-        if not os.path.exists(repo_path):
+        # Refresh after re-clone
+        repo = repositories_db.get(repo_id)
+        repo_path = repo.local_path if repo else None
+        if not repo_path or not os.path.exists(repo_path):
             raise HTTPException(status_code=500, detail="Failed to re-download repository files.")
 
     try:
