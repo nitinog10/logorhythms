@@ -1,8 +1,8 @@
 'use client'
 
-export default function GradientMesh({ className = '' }: { className?: string }) {
+export default function GradientMesh({ className = '', style }: { className?: string; style?: React.CSSProperties }) {
   return (
-    <div className={`absolute inset-0 overflow-hidden pointer-events-none ${className}`} aria-hidden="true">
+    <div className={`absolute inset-0 overflow-hidden pointer-events-none ${className}`} style={style} aria-hidden="true">
       {/* Blob 1 — indigo, drifts top-left to center */}
       <div
         className="absolute w-[700px] h-[700px] rounded-full opacity-30 blur-[120px]"

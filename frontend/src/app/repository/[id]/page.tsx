@@ -18,7 +18,6 @@ import {
   Loader2,
   ChevronRight,
   File,
-  Folder,
   Sparkles,
   AlertCircle,
   BookOpen,
@@ -28,6 +27,11 @@ import { repositories, files, FileNode, Repository } from '@/lib/api'
 import { formatRelativeTime, getLanguageFromPath } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import DocumentationPanel from '@/components/documentation/DocumentationPanel'
+import GradientMesh from '@/components/landing/GradientMesh'
+import TiltCard from '@/components/landing/TiltCard'
+import RevealText from '@/components/landing/RevealText'
+
+const ease = [0.23, 1, 0.32, 1] as const
 
 export default function RepositoryPage({ params }: { params: { id: string } }) {
   const router = useRouter()
@@ -73,29 +77,23 @@ export default function RepositoryPage({ params }: { params: { id: string } }) {
   // Poll for index status when repo is not yet indexed
   useEffect(() => {
     if (!repo || repo.is_indexed) return
-
     const interval = setInterval(async () => {
       try {
         const status = await repositories.getStatus(params.id)
         if (status.is_indexed) {
-          // Repo is now indexed — refresh everything and stop polling
           const updatedRepo = await repositories.get(params.id)
           setRepo(updatedRepo)
           fetchFiles()
           clearInterval(interval)
         }
-      } catch {
-        // Silently ignore polling errors
-      }
+      } catch {}
     }, 5000)
-
     return () => clearInterval(interval)
   }, [repo, params.id, fetchFiles])
 
-  // Poll for files when repo is indexed but file tree is empty (re-clone in progress)
+  // Poll for files when repo is indexed but file tree is empty
   useEffect(() => {
     if (!repo || !repo.is_indexed || fileTree.length > 0 || isFilesLoading) return
-
     const interval = setInterval(() => fetchFiles(), 6000)
     return () => clearInterval(interval)
   }, [repo, fileTree.length, isFilesLoading, fetchFiles])
@@ -105,7 +103,6 @@ export default function RepositoryPage({ params }: { params: { id: string } }) {
     try {
       await repositories.index(params.id)
       toast.success('Re-indexing started')
-      // Refresh after a moment
       setTimeout(() => { fetchData(); fetchFiles() }, 2000)
     } catch {
       toast.error('Failed to start re-indexing')
@@ -128,16 +125,15 @@ export default function RepositoryPage({ params }: { params: { id: string } }) {
     }
   }
 
-  // Flatten files for list display
   const allFiles = flattenFileTree(fileTree).filter((f) => !f.is_directory)
   const flatFiles = allFiles.slice(0, 30)
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-dv-bg flex">
+      <div className="min-h-screen bg-[var(--page-bg)] flex text-white">
         <Sidebar />
         <main className="flex-1 flex items-center justify-center">
-          <Loader2 className="w-6 h-6 text-dv-accent animate-spin" />
+          <Loader2 className="w-6 h-6 text-indigo-400 animate-spin" />
         </main>
       </div>
     )
@@ -145,13 +141,18 @@ export default function RepositoryPage({ params }: { params: { id: string } }) {
 
   if (error || !repo) {
     return (
-      <div className="min-h-screen bg-dv-bg flex">
+      <div className="min-h-screen bg-[var(--page-bg)] flex text-white">
         <Sidebar />
         <main className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <AlertCircle className="w-8 h-8 text-dv-error mx-auto mb-3" />
-            <p className="text-sm text-dv-error mb-4">{error || 'Repository not found'}</p>
-            <Link href="/repositories" className="btn-secondary">Back to Repositories</Link>
+            <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-3" />
+            <p className="text-[14px] text-red-400 mb-6">{error || 'Repository not found'}</p>
+            <Link
+              href="/repositories"
+              className="inline-flex items-center gap-2 bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--text-primary)] font-semibold text-[13px] px-5 py-2.5 rounded-xl hover:bg-[var(--input-bg)] transition-all"
+            >
+              Back to Repositories
+            </Link>
           </div>
         </main>
       </div>
@@ -159,171 +160,240 @@ export default function RepositoryPage({ params }: { params: { id: string } }) {
   }
 
   return (
-    <div className="min-h-screen bg-dv-bg flex">
+    <div className="min-h-screen bg-[var(--page-bg)] flex text-[var(--text-primary)] selection:bg-indigo-500/30">
       <Sidebar />
 
-      <main className="flex-1 overflow-y-auto">
-        {/* iOS frosted top bar */}
-        <div className="sticky top-0 z-10 glass-bar">
-          <div className="flex items-center gap-3 px-8 h-14">
-            <Link href="/repositories" className="p-1.5 rounded-[10px] hover:bg-dv-elevated/60 transition-colors">
-              <ArrowLeft className="w-4 h-4 text-dv-text-muted" />
+      <main className="flex-1 overflow-y-auto relative">
+        {/* Gradient mesh */}
+        <GradientMesh className="fixed" style={{ opacity: "var(--glow-opacity)" }} />
+
+        {/* Frosted top bar */}
+        <div className="sticky top-0 z-20 bg-[var(--page-bg)]/70 backdrop-blur-2xl backdrop-saturate-[1.8] border-b border-[var(--card-border)]">
+          <div className="flex items-center gap-3 px-8 h-14 max-w-[1200px] mx-auto">
+            <Link href="/repositories" className="p-1.5 rounded-xl hover:bg-[var(--input-bg)] transition-colors">
+              <ArrowLeft className="w-4 h-4 text-[var(--text-secondary)]" />
             </Link>
-            <div className="flex items-center gap-2 text-ios-subhead text-dv-text-muted">
+            <div className="flex items-center gap-2 text-[14px] text-[var(--text-secondary)]">
               <span>Repositories</span>
               <ChevronRight className="w-3.5 h-3.5" />
-              <span className="text-dv-text font-semibold">{repo.name}</span>
+              <span className="text-[var(--text-primary)] font-semibold">{repo.name}</span>
             </div>
             <div className="flex-1" />
             <button
               onClick={handleReindex}
               disabled={isReindexing}
-              className="btn-secondary flex items-center gap-2 text-[13px]"
+              className="inline-flex items-center gap-2 bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--text-primary)] font-semibold text-[13px] px-4 py-2 rounded-xl hover:bg-[var(--input-bg)] transition-all disabled:opacity-40"
             >
               {isReindexing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
               Reindex
             </button>
-            <Link href={`/repository/${params.id}/walkthrough`} className="btn-primary flex items-center gap-2 text-[13px]">
+            <Link
+              href={`/repository/${params.id}/walkthrough`}
+              className="inline-flex items-center gap-2 bg-white text-black font-semibold text-[13px] px-5 py-2 rounded-full hover:shadow-[0_0_20px_rgba(168,85,247,0.3)] active:scale-[0.97] transition-all duration-300"
+            >
               <Play className="w-3.5 h-3.5" />
               Walkthrough
             </Link>
           </div>
         </div>
 
-        <div className="px-8 py-6 max-w-6xl">
-          {/* Repo header */}
-          <div className="flex items-start gap-4 mb-8">
-            <div className="w-12 h-12 rounded-ios bg-dv-accent/10 flex items-center justify-center flex-shrink-0">
-              <FolderGit2 className="w-6 h-6 text-dv-accent" />
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-1">
-                <h1 className="text-display-sm">{repo.name}</h1>
-                {repo.is_indexed ? (
-                  <span className="badge-success"><CheckCircle2 className="w-3 h-3 mr-1" /> Indexed</span>
-                ) : (
-                  <span className="badge-warning">Pending</span>
+        <div className="relative z-[1] px-8 py-10 max-w-[1200px] mx-auto">
+
+          {/* ── Repo header ── */}
+          <motion.div
+            className="mb-12"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, ease }}
+          >
+            <div className="flex items-start gap-5">
+              <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/15 flex items-center justify-center flex-shrink-0">
+                <FolderGit2 className="w-7 h-7 text-indigo-400" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-1">
+                  <RevealText
+                    as="h1"
+                    className="text-[clamp(1.5rem,3vw,2.2rem)] font-bold tracking-[-0.03em]"
+                    delay={0.1}
+                  >
+                    {repo.name}
+                  </RevealText>
+                  {repo.is_indexed ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-green-500/10 text-green-400 text-[11px] font-bold tracking-wider uppercase">
+                      <CheckCircle2 className="w-3 h-3" /> Indexed
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-yellow-500/10 text-yellow-400 text-[11px] font-bold tracking-wider uppercase">
+                      Pending
+                    </span>
+                  )}
+                </div>
+                <p className="text-[14px] text-[var(--text-secondary)]">{repo.full_name}</p>
+                {repo.description && (
+                  <p className="text-[14px] text-[var(--text-muted)] mt-2 max-w-2xl leading-relaxed">{repo.description}</p>
                 )}
               </div>
-              <p className="text-ios-subhead text-dv-text-secondary">{repo.full_name}</p>
-              {repo.description && (
-                <p className="text-ios-subhead text-dv-text-muted mt-2 max-w-2xl">{repo.description}</p>
-              )}
             </div>
-          </div>
+          </motion.div>
 
-          {/* Info cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
-            <div className="card flex items-center gap-3">
-              <div className="w-9 h-9 rounded-[10px] bg-dv-accent/10 flex items-center justify-center text-dv-accent">
-                <FileCode className="w-4 h-4" />
+          {/* ── Info cards ── */}
+          <motion.div
+            className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease, delay: 0.2 }}
+          >
+            <TiltCard className="rounded-2xl">
+              <div className="rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] p-5">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/15 flex items-center justify-center">
+                    <FileCode className="w-4 h-4 text-indigo-400" />
+                  </div>
+                  <div>
+                    <p className="text-[22px] font-bold tabular-nums text-indigo-400">{allFiles.length}</p>
+                    <p className="text-[11px] text-[var(--text-muted)] font-medium">Files</p>
+                  </div>
+                </div>
               </div>
-              <div>
-                <p className="text-[20px] font-bold tabular-nums">{allFiles.length}</p>
-                <p className="text-ios-caption1 text-dv-text-muted">Files</p>
-              </div>
-            </div>
+            </TiltCard>
             {repo.language && (
-              <div className="card flex items-center gap-3">
-                <div className="w-9 h-9 rounded-[10px] bg-dv-purple/10 flex items-center justify-center text-dv-purple">
-                  <GitBranch className="w-4 h-4" />
+              <TiltCard className="rounded-2xl">
+                <div className="rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] p-5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/15 flex items-center justify-center">
+                      <GitBranch className="w-4 h-4 text-purple-400" />
+                    </div>
+                    <div>
+                      <p className="text-[15px] font-semibold text-[var(--text-primary)]">{repo.language}</p>
+                      <p className="text-[11px] text-[var(--text-muted)] font-medium">Language</p>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-ios-subhead font-semibold">{repo.language}</p>
-                  <p className="text-ios-caption1 text-dv-text-muted">Language</p>
-                </div>
-              </div>
+              </TiltCard>
             )}
             {(repo.created_at || repo.indexed_at) && (
-              <div className="card flex items-center gap-3">
-                <div className="w-9 h-9 rounded-[10px] bg-dv-success/10 flex items-center justify-center text-dv-success">
-                  <Clock className="w-4 h-4" />
+              <TiltCard className="rounded-2xl">
+                <div className="rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] p-5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-green-500/10 border border-green-500/15 flex items-center justify-center">
+                      <Clock className="w-4 h-4 text-green-400" />
+                    </div>
+                    <div>
+                      <p className="text-[15px] font-semibold text-[var(--text-primary)]">{formatRelativeTime(repo.created_at || repo.indexed_at!)}</p>
+                      <p className="text-[11px] text-[var(--text-muted)] font-medium">Connected</p>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-ios-subhead font-semibold">{formatRelativeTime(repo.created_at || repo.indexed_at!)}</p>
-                  <p className="text-ios-caption1 text-dv-text-muted">Connected</p>
-                </div>
-              </div>
+              </TiltCard>
             )}
-            <div className="card flex items-center gap-3">
+            <TiltCard className="rounded-2xl">
               <a
                 href={`https://github.com/${repo.full_name}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 text-ios-subhead text-dv-accent hover:brightness-110 transition-all"
+                className="block rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] p-5 group"
               >
-                <ExternalLink className="w-4 h-4" />
-                View on GitHub
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-[var(--input-bg)] border border-[var(--input-border)] flex items-center justify-center">
+                    <ExternalLink className="w-4 h-4 text-[var(--text-secondary)] group-hover:text-indigo-400 transition-colors" />
+                  </div>
+                  <span className="text-[14px] font-medium text-[var(--text-secondary)] group-hover:text-indigo-400 transition-colors">
+                    View on GitHub
+                  </span>
+                </div>
               </a>
-            </div>
-          </div>
+            </TiltCard>
+          </motion.div>
 
-          {/* iOS segmented tab switcher */}
-          <div className="ios-segmented w-fit mb-6">
-            <button
-              onClick={() => setActiveTab('files')}
-              className={`ios-segmented-item flex items-center gap-1.5 ${activeTab === 'files' ? 'active' : ''}`}
-            >
-              <FileCode className="w-4 h-4" />
-              Files
-            </button>
-            <button
-              onClick={() => setActiveTab('documentation')}
-              className={`ios-segmented-item flex items-center gap-1.5 ${activeTab === 'documentation' ? 'active' : ''}`}
-            >
-              <BookOpen className="w-4 h-4" />
-              Documentation
-            </button>
-          </div>
+          {/* ── Tab switcher ── */}
+          <motion.div
+            className="mb-8"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+          >
+            <div className="inline-flex items-center bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-0.5">
+              <button
+                onClick={() => setActiveTab('files')}
+                className={`px-4 py-2 rounded-[10px] text-[13px] font-semibold flex items-center gap-1.5 transition-all ${
+                  activeTab === 'files'
+                    ? 'bg-[var(--input-border)] text-[var(--text-primary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-secondary)]'
+                }`}
+              >
+                <FileCode className="w-4 h-4" /> Files
+              </button>
+              <button
+                onClick={() => setActiveTab('documentation')}
+                className={`px-4 py-2 rounded-[10px] text-[13px] font-semibold flex items-center gap-1.5 transition-all ${
+                  activeTab === 'documentation'
+                    ? 'bg-[var(--input-border)] text-[var(--text-primary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-secondary)]'
+                }`}
+              >
+                <BookOpen className="w-4 h-4" /> Documentation
+              </button>
+            </div>
+          </motion.div>
 
           {activeTab === 'documentation' ? (
             <DocumentationPanel repoId={params.id} fullName={repo?.full_name} />
           ) : (
             <div className="grid lg:grid-cols-3 gap-6">
-              {/* File list */}
+              {/* ── File list ── */}
               <div className="lg:col-span-2">
-                <h3 className="text-ios-caption1 font-semibold text-dv-text-secondary uppercase tracking-wider mb-4">
-                  Files
-                </h3>
+                <div className="flex items-center gap-2 mb-5">
+                  <span className="w-6 h-[1px] bg-white/10" />
+                  <span className="text-[12px] tracking-[0.15em] uppercase text-[var(--text-muted)] font-medium">
+                    {allFiles.length} files
+                  </span>
+                </div>
 
                 {isFilesLoading ? (
-                  <div className="card flex items-center justify-center py-12">
-                    <Loader2 className="w-5 h-5 text-dv-accent animate-spin mr-3" />
-                    <span className="text-ios-subhead text-dv-text-muted">Loading file tree…</span>
+                  <div className="rounded-2xl bg-[var(--hover-bg)] border border-[var(--card-border)] flex items-center justify-center py-16">
+                    <Loader2 className="w-5 h-5 text-indigo-400 animate-spin mr-3" />
+                    <span className="text-[14px] text-[var(--text-muted)]">Loading file tree…</span>
                   </div>
                 ) : flatFiles.length === 0 ? (
-                  <div className="card text-center py-12">
-                    <FileCode className="w-7 h-7 text-dv-text-muted mx-auto mb-3" />
-                    <p className="text-ios-subhead text-dv-text-muted mb-4">
+                  <div className="rounded-2xl bg-[var(--hover-bg)] border border-[var(--card-border)] text-center py-16">
+                    <FileCode className="w-7 h-7 text-[var(--text-faint)] mx-auto mb-3" />
+                    <p className="text-[14px] text-[var(--text-muted)] mb-5">
                       {repo.is_indexed ? 'No files found' : 'Index this repository to browse files'}
                     </p>
                     {!repo.is_indexed && (
-                      <button onClick={handleReindex} disabled={isReindexing} className="btn-primary inline-flex items-center gap-2">
+                      <button
+                        onClick={handleReindex}
+                        disabled={isReindexing}
+                        className="inline-flex items-center gap-2 bg-white text-black font-semibold text-[13px] px-6 py-2.5 rounded-full hover:shadow-[0_0_20px_rgba(168,85,247,0.3)] active:scale-[0.97] transition-all duration-300"
+                      >
                         <Sparkles className="w-4 h-4" /> Index Now
                       </button>
                     )}
                   </div>
                 ) : (
-                  <div className="ios-group overflow-hidden">
+                  <div className="rounded-2xl bg-[var(--hover-bg)] border border-[var(--card-border)] overflow-hidden">
                     {flatFiles.map((file, i) => (
                       <motion.div
                         key={file.path}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: i * 0.02 }}
-                        className="ios-group-item flex items-center gap-3 group"
+                        initial={{ opacity: 0, x: -8 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.02, duration: 0.3, ease }}
+                        className={`flex items-center gap-3 px-5 py-3.5 group hover:bg-[var(--hover-bg)] transition-all ${
+                          i < flatFiles.length - 1 ? 'border-b border-[var(--text-faint)]' : ''
+                        }`}
                       >
-                        <File className="w-4 h-4 text-dv-text-muted flex-shrink-0" />
+                        <File className="w-4 h-4 text-[var(--text-faint)] flex-shrink-0" />
                         <div className="flex-1 min-w-0">
-                          <p className="text-ios-subhead font-medium truncate">{file.name}</p>
-                          <p className="text-ios-caption1 text-dv-text-muted truncate">{file.path}</p>
+                          <p className="text-[14px] font-medium text-[var(--text-primary)] truncate">{file.name}</p>
+                          <p className="text-[11px] text-[var(--text-muted)] truncate">{file.path}</p>
                         </div>
                         {file.language && (
-                          <span className="text-ios-caption1 text-dv-text-muted">{file.language}</span>
+                          <span className="text-[11px] text-[var(--text-muted)] font-medium">{file.language}</span>
                         )}
                         <Link
                           href={`/repository/${params.id}/walkthrough?file=${encodeURIComponent(file.path)}`}
-                          className="flex items-center gap-1.5 px-3 py-1 rounded-[10px] text-ios-caption1 font-semibold bg-dv-accent/10 text-dv-accent hover:bg-dv-accent/20 transition-colors opacity-0 group-hover:opacity-100"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 transition-colors opacity-0 group-hover:opacity-100"
                         >
                           <Play className="w-3 h-3" /> Walkthrough
                         </Link>
@@ -333,51 +403,51 @@ export default function RepositoryPage({ params }: { params: { id: string } }) {
                 )}
               </div>
 
-              {/* Sidebar */}
-              <div className="space-y-3">
+              {/* ── Sidebar actions ── */}
+              <div className="space-y-4">
                 {/* Quick actions */}
-                <div className="card">
-                  <h3 className="text-ios-subhead font-semibold mb-3">Quick Actions</h3>
-                  <div className="space-y-1.5">
+                <div className="rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] p-5">
+                  <h3 className="text-[15px] font-semibold text-[var(--text-primary)] mb-4">Quick Actions</h3>
+                  <div className="space-y-2">
                     <Link
                       href={`/repository/${params.id}/walkthrough`}
-                      className="flex items-center gap-3 p-3 rounded-[12px] bg-dv-elevated/40 hover:bg-dv-elevated/70 transition-colors group"
+                      className="flex items-center gap-3 p-3 rounded-xl bg-[var(--hover-bg)] hover:bg-[var(--input-bg)] transition-colors group"
                     >
-                      <Play className="w-4 h-4 text-dv-accent" />
-                      <span className="text-ios-subhead">Start Walkthrough</span>
-                      <ChevronRight className="w-3.5 h-3.5 text-dv-text-muted ml-auto group-hover:translate-x-0.5 transition-transform" />
+                      <Play className="w-4 h-4 text-purple-400" />
+                      <span className="text-[14px] text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors">Start Walkthrough</span>
+                      <ChevronRight className="w-3.5 h-3.5 text-[var(--text-faint)] ml-auto group-hover:translate-x-0.5 group-hover:text-[var(--text-muted)] transition-all" />
                     </Link>
                     <button
                       onClick={handleReindex}
                       disabled={isReindexing}
-                      className="flex items-center gap-3 p-3 rounded-[12px] bg-dv-elevated/40 hover:bg-dv-elevated/70 transition-colors w-full text-left"
+                      className="flex items-center gap-3 p-3 rounded-xl bg-[var(--hover-bg)] hover:bg-[var(--input-bg)] transition-colors w-full text-left"
                     >
-                      {isReindexing ? <Loader2 className="w-4 h-4 animate-spin text-dv-text-muted" /> : <RefreshCw className="w-4 h-4 text-dv-text-muted" />}
-                      <span className="text-ios-subhead">Re-index Repository</span>
+                      {isReindexing ? <Loader2 className="w-4 h-4 animate-spin text-[var(--text-muted)]" /> : <RefreshCw className="w-4 h-4 text-[var(--text-muted)]" />}
+                      <span className="text-[14px] text-[var(--text-secondary)]">Re-index Repository</span>
                     </button>
                     <button
                       onClick={() => setActiveTab('documentation')}
-                      className="flex items-center gap-3 p-3 rounded-[12px] bg-dv-elevated/40 hover:bg-dv-elevated/70 transition-colors w-full text-left group"
+                      className="flex items-center gap-3 p-3 rounded-xl bg-[var(--hover-bg)] hover:bg-[var(--input-bg)] transition-colors w-full text-left group"
                     >
-                      <BookOpen className="w-4 h-4 text-dv-purple" />
-                      <span className="text-ios-subhead">View Documentation</span>
-                      <ChevronRight className="w-3.5 h-3.5 text-dv-text-muted ml-auto group-hover:translate-x-0.5 transition-transform" />
+                      <BookOpen className="w-4 h-4 text-indigo-400" />
+                      <span className="text-[14px] text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors">View Documentation</span>
+                      <ChevronRight className="w-3.5 h-3.5 text-[var(--text-faint)] ml-auto group-hover:translate-x-0.5 group-hover:text-[var(--text-muted)] transition-all" />
                     </button>
                   </div>
                 </div>
 
                 {/* Danger zone */}
-                <div className="card border-dv-error/20">
-                  <h3 className="text-ios-subhead font-semibold text-dv-error mb-3 flex items-center gap-2">
+                <div className="rounded-2xl bg-[var(--card-bg)] border border-red-500/15 p-5">
+                  <h3 className="text-[15px] font-semibold text-red-400 mb-2 flex items-center gap-2">
                     <Trash2 className="w-3.5 h-3.5" /> Danger Zone
                   </h3>
-                  <p className="text-ios-caption1 text-dv-text-muted mb-3">
+                  <p className="text-[12px] text-[var(--text-muted)] mb-4 leading-relaxed">
                     Disconnect this repository and delete all walkthroughs.
                   </p>
                   <button
                     onClick={handleDelete}
                     disabled={isDeleting}
-                    className="w-full py-2 rounded-[10px] border border-dv-error/30 text-dv-error text-ios-caption1 font-semibold hover:bg-dv-error/10 active:scale-[0.98] transition-all disabled:opacity-50"
+                    className="w-full py-2.5 rounded-xl border border-red-500/20 text-red-400 text-[13px] font-semibold hover:bg-red-500/10 active:scale-[0.98] transition-all disabled:opacity-40"
                   >
                     {isDeleting ? 'Disconnecting…' : 'Disconnect Repository'}
                   </button>
@@ -391,7 +461,6 @@ export default function RepositoryPage({ params }: { params: { id: string } }) {
   )
 }
 
-/** Recursively flatten a file tree into a flat array */
 function flattenFileTree(nodes: FileNode[]): FileNode[] {
   const result: FileNode[] = []
   for (const node of nodes) {
@@ -402,4 +471,3 @@ function flattenFileTree(nodes: FileNode[]): FileNode[] {
   }
   return result
 }
-

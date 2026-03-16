@@ -41,7 +41,7 @@ export default function TiltCard({ children, className = '' }: TiltCardProps) {
       {/* Tilt surface — overflow visible so scale doesn't clip top/bottom */}
       <div
         ref={ref}
-        className="relative w-full h-full"
+        className="relative w-full"
         style={{ ...style, overflow: 'visible' }}
         onMouseMove={handleMove}
         onMouseLeave={handleLeave}

@@ -80,7 +80,6 @@ export function CreateRepoModal({ isOpen, onClose, onCreated }: CreateRepoModalP
     } else if (file) {
       setError('Only .zip files are accepted')
     }
-    // Reset so the same file can be re-selected
     e.target.value = ''
   }, [])
 
@@ -94,9 +93,7 @@ export function CreateRepoModal({ isOpen, onClose, onCreated }: CreateRepoModalP
 
     try {
       if (zipFile) {
-        // Combined flow: create repo + upload files
         setProgressStep('creating')
-        // Small delay so the user sees the "Creating repository…" step
         await new Promise((r) => setTimeout(r, 300))
         setProgressStep('uploading')
 
@@ -113,7 +110,6 @@ export function CreateRepoModal({ isOpen, onClose, onCreated }: CreateRepoModalP
         toast.success(`Repository "${result.full_name}" created with ${result.files_pushed} files!`)
         onCreated?.()
       } else {
-        // Original flow: create empty repo
         setProgressStep('creating')
         const result = await github.createRepo(name.trim(), description.trim(), isPrivate)
         setCreatedUrl(result.url)
@@ -161,7 +157,7 @@ export function CreateRepoModal({ isOpen, onClose, onCreated }: CreateRepoModalP
       {/* Backdrop */}
       <div
         className={clsx(
-          'fixed inset-0 bg-[var(--bar-bg)] backdrop-blur-sm z-50 transition-opacity duration-200',
+          'fixed inset-0 bg-black/60 backdrop-blur-sm z-50 transition-opacity duration-200',
           visible ? 'opacity-100' : 'opacity-0'
         )}
         onClick={handleClose}
@@ -174,21 +170,21 @@ export function CreateRepoModal({ isOpen, onClose, onCreated }: CreateRepoModalP
           visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
         )}
       >
-        <div className="bg-dv-surface/80 backdrop-blur-ios border border-dv-border rounded-ios-xl shadow-ios-xl overflow-hidden">
+        <div className="bg-[var(--card-bg)] backdrop-blur-2xl border border-[var(--card-border)] rounded-2xl shadow-[0_24px_80px_-12px_rgba(0,0,0,0.5)] overflow-hidden">
 
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-dv-border">
+          <div className="flex items-center justify-between p-6 border-b border-[var(--text-faint)]">
             <div>
-              <h2 className="ios-title3 font-semibold">Create New Repository</h2>
-              <p className="ios-caption1 text-dv-text-muted mt-1">
+              <h2 className="text-[18px] font-semibold tracking-[-0.02em] text-[var(--text-primary)]">Create New Repository</h2>
+              <p className="text-[13px] text-[var(--text-muted)] mt-0.5">
                 Create a new GitHub repository
               </p>
             </div>
             <button
               onClick={handleClose}
-              className="w-8 h-8 rounded-full bg-[var(--glass-6)] flex items-center justify-center hover:bg-[var(--glass-10)] transition-colors active:scale-[0.92]"
+              className="w-8 h-8 rounded-full bg-[var(--input-bg)] flex items-center justify-center hover:bg-[var(--input-border)] transition-colors active:scale-[0.92]"
             >
-              <X className="w-4 h-4 text-dv-text-muted" />
+              <X className="w-4 h-4 text-[var(--text-muted)]" />
             </button>
           </div>
 
@@ -197,11 +193,11 @@ export function CreateRepoModal({ isOpen, onClose, onCreated }: CreateRepoModalP
             {createdUrl ? (
               /* Success state */
               <div className="flex flex-col items-center text-center py-6">
-                <div className="w-14 h-14 rounded-full bg-dv-success/15 flex items-center justify-center mb-4">
-                  <CheckCircle2 className="w-7 h-7 text-dv-success" />
+                <div className="w-14 h-14 rounded-full bg-green-500/15 flex items-center justify-center mb-4">
+                  <CheckCircle2 className="w-7 h-7 text-green-400" />
                 </div>
-                <p className="ios-subhead font-semibold mb-1">Repository Created!</p>
-                <p className="ios-caption1 text-dv-text-muted mb-3">
+                <p className="text-[15px] font-semibold text-[var(--text-primary)] mb-1">Repository Created!</p>
+                <p className="text-[13px] text-[var(--text-muted)] mb-3">
                   {filesPushed > 0
                     ? `${filesPushed} files pushed to GitHub and connected to DocuVerse.`
                     : 'Your new repository is ready on GitHub.'}
@@ -211,7 +207,7 @@ export function CreateRepoModal({ isOpen, onClose, onCreated }: CreateRepoModalP
                     href={createdUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 ios-caption1 font-medium text-dv-accent hover:underline"
+                    className="inline-flex items-center gap-2 text-[13px] font-medium text-indigo-400 hover:underline"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
                     Open on GitHub
@@ -219,7 +215,7 @@ export function CreateRepoModal({ isOpen, onClose, onCreated }: CreateRepoModalP
                   {repoId && (
                     <a
                       href={`/repository/${repoId}`}
-                      className="inline-flex items-center gap-2 ios-caption1 font-medium text-dv-purple hover:underline"
+                      className="inline-flex items-center gap-2 text-[13px] font-medium text-purple-400 hover:underline"
                     >
                       <CheckCircle2 className="w-3.5 h-3.5" />
                       View in DocuVerse
@@ -231,7 +227,7 @@ export function CreateRepoModal({ isOpen, onClose, onCreated }: CreateRepoModalP
               <>
                 {/* Repo name */}
                 <div>
-                  <label className="ios-caption2 font-semibold text-dv-text-muted uppercase tracking-[0.04em] mb-2 block">
+                  <label className="text-[12px] font-semibold text-[var(--text-muted)] uppercase tracking-[0.04em] mb-2 block">
                     Repository Name
                   </label>
                   <input
@@ -239,9 +235,9 @@ export function CreateRepoModal({ isOpen, onClose, onCreated }: CreateRepoModalP
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="my-awesome-project"
-                    className="w-full bg-[var(--glass-4)] border border-dv-border rounded-[12px] py-3 px-4
-                             text-dv-text placeholder:text-dv-text-muted ios-subhead
-                             focus:outline-none focus:ring-2 focus:ring-dv-accent/30 focus:border-dv-accent/40 transition-all"
+                    className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl py-3 px-4
+                             text-[var(--text-primary)] placeholder:text-[var(--text-faint)] text-[14px]
+                             focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500/40 transition-all"
                     autoFocus
                     disabled={isCreating}
                   />
@@ -249,7 +245,7 @@ export function CreateRepoModal({ isOpen, onClose, onCreated }: CreateRepoModalP
 
                 {/* Description */}
                 <div>
-                  <label className="ios-caption2 font-semibold text-dv-text-muted uppercase tracking-[0.04em] mb-2 block">
+                  <label className="text-[12px] font-semibold text-[var(--text-muted)] uppercase tracking-[0.04em] mb-2 block">
                     Description
                   </label>
                   <textarea
@@ -257,16 +253,16 @@ export function CreateRepoModal({ isOpen, onClose, onCreated }: CreateRepoModalP
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="A short description of this repository"
                     rows={3}
-                    className="w-full bg-[var(--glass-4)] border border-dv-border rounded-[12px] py-3 px-4
-                             text-dv-text placeholder:text-dv-text-muted ios-subhead
-                             focus:outline-none focus:ring-2 focus:ring-dv-accent/30 focus:border-dv-accent/40 transition-all resize-none"
+                    className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl py-3 px-4
+                             text-[var(--text-primary)] placeholder:text-[var(--text-faint)] text-[14px]
+                             focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500/40 transition-all resize-none"
                     disabled={isCreating}
                   />
                 </div>
 
                 {/* Visibility toggle */}
                 <div>
-                  <label className="ios-caption2 font-semibold text-dv-text-muted uppercase tracking-[0.04em] mb-2 block">
+                  <label className="text-[12px] font-semibold text-[var(--text-muted)] uppercase tracking-[0.04em] mb-2 block">
                     Visibility
                   </label>
                   <div className="flex items-center gap-2">
@@ -274,10 +270,10 @@ export function CreateRepoModal({ isOpen, onClose, onCreated }: CreateRepoModalP
                       onClick={() => setIsPrivate(false)}
                       disabled={isCreating}
                       className={clsx(
-                        'flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-[12px] ios-subhead font-medium border transition-all',
+                        'flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-[14px] font-medium border transition-all',
                         !isPrivate
-                          ? 'bg-dv-accent/10 border-dv-accent/30 text-dv-accent'
-                          : 'bg-[var(--glass-4)] border-dv-border text-dv-text-muted hover:bg-[var(--glass-6)]'
+                          ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400'
+                          : 'bg-[var(--input-bg)] border-[var(--input-border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)]'
                       )}
                     >
                       <Globe className="w-4 h-4" />
@@ -287,10 +283,10 @@ export function CreateRepoModal({ isOpen, onClose, onCreated }: CreateRepoModalP
                       onClick={() => setIsPrivate(true)}
                       disabled={isCreating}
                       className={clsx(
-                        'flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-[12px] ios-subhead font-medium border transition-all',
+                        'flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-[14px] font-medium border transition-all',
                         isPrivate
-                          ? 'bg-dv-purple/10 border-dv-purple/30 text-dv-purple'
-                          : 'bg-[var(--glass-4)] border-dv-border text-dv-text-muted hover:bg-[var(--glass-6)]'
+                          ? 'bg-purple-500/10 border-purple-500/30 text-purple-400'
+                          : 'bg-[var(--input-bg)] border-[var(--input-border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)]'
                       )}
                     >
                       <Lock className="w-4 h-4" />
@@ -301,25 +297,25 @@ export function CreateRepoModal({ isOpen, onClose, onCreated }: CreateRepoModalP
 
                 {/* ZIP Upload (optional) */}
                 <div>
-                  <label className="ios-caption2 font-semibold text-dv-text-muted uppercase tracking-[0.04em] mb-2 block">
+                  <label className="text-[12px] font-semibold text-[var(--text-muted)] uppercase tracking-[0.04em] mb-2 block">
                     Upload Project Files{' '}
-                    <span className="normal-case font-normal text-dv-text-muted/60">(optional)</span>
+                    <span className="normal-case font-normal text-[var(--text-faint)]">(optional)</span>
                   </label>
 
                   {zipFile ? (
-                    <div className="flex items-center gap-3 p-3 rounded-[12px] bg-dv-accent/5 border border-dv-accent/20">
-                      <FileArchive className="w-5 h-5 text-dv-accent flex-shrink-0" />
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-indigo-500/5 border border-indigo-500/20">
+                      <FileArchive className="w-5 h-5 text-indigo-400 flex-shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="ios-caption1 font-medium text-dv-text truncate">{zipFile.name}</p>
-                        <p className="ios-caption2 text-dv-text-muted">
+                        <p className="text-[13px] font-medium text-[var(--text-primary)] truncate">{zipFile.name}</p>
+                        <p className="text-[11px] text-[var(--text-muted)]">
                           {(zipFile.size / (1024 * 1024)).toFixed(1)} MB
                         </p>
                       </div>
                       <button
                         onClick={() => setZipFile(null)}
                         disabled={isCreating}
-                        className="w-7 h-7 rounded-full bg-[var(--glass-6)] flex items-center justify-center
-                                 hover:bg-dv-error/15 hover:text-dv-error transition-colors"
+                        className="w-7 h-7 rounded-full bg-[var(--input-bg)] flex items-center justify-center
+                                 hover:bg-red-500/15 hover:text-red-400 transition-colors"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -331,19 +327,19 @@ export function CreateRepoModal({ isOpen, onClose, onCreated }: CreateRepoModalP
                       onDrop={handleFileDrop}
                       onClick={() => fileInputRef.current?.click()}
                       className={clsx(
-                        'flex flex-col items-center justify-center gap-2 p-5 rounded-[12px] border-2 border-dashed cursor-pointer transition-all',
+                        'flex flex-col items-center justify-center gap-2 p-5 rounded-xl border-2 border-dashed cursor-pointer transition-all',
                         dragOver
-                          ? 'border-dv-accent bg-dv-accent/5'
-                          : 'border-dv-border hover:border-dv-accent/40 hover:bg-[var(--glass-2)]',
+                          ? 'border-indigo-500 bg-indigo-500/5'
+                          : 'border-[var(--input-border)] hover:border-indigo-500/40 hover:bg-[var(--hover-bg)]',
                         isCreating && 'pointer-events-none opacity-50',
                       )}
                     >
-                      <Upload className="w-5 h-5 text-dv-text-muted" />
-                      <p className="ios-caption1 text-dv-text-muted text-center">
-                        Drop a <span className="font-medium text-dv-text">.zip</span> file here or{' '}
-                        <span className="text-dv-accent font-medium">browse</span>
+                      <Upload className="w-5 h-5 text-[var(--text-muted)]" />
+                      <p className="text-[13px] text-[var(--text-muted)] text-center">
+                        Drop a <span className="font-medium text-[var(--text-primary)]">.zip</span> file here or{' '}
+                        <span className="text-indigo-400 font-medium">browse</span>
                       </p>
-                      <p className="ios-caption2 text-dv-text-muted/60">
+                      <p className="text-[11px] text-[var(--text-faint)]">
                         Files will be pushed directly to the new repository
                       </p>
                       <input
@@ -359,9 +355,9 @@ export function CreateRepoModal({ isOpen, onClose, onCreated }: CreateRepoModalP
 
                 {/* Error */}
                 {error && (
-                  <div className="flex items-center gap-2 p-3 rounded-[10px] bg-dv-error/10 border border-dv-error/20">
-                    <AlertCircle className="w-4 h-4 text-dv-error flex-shrink-0" />
-                    <span className="ios-caption1 text-dv-error">{error}</span>
+                  <div className="flex items-center gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+                    <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                    <span className="text-[13px] text-red-400">{error}</span>
                   </div>
                 )}
               </>
@@ -369,11 +365,11 @@ export function CreateRepoModal({ isOpen, onClose, onCreated }: CreateRepoModalP
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-end gap-3 p-6 border-t border-dv-border">
+          <div className="flex items-center justify-end gap-3 p-6 border-t border-[var(--text-faint)]">
             {createdUrl ? (
               <button
                 onClick={handleClose}
-                className="btn-primary px-6 py-2.5 rounded-[12px] ios-subhead font-medium"
+                className="bg-[var(--btn-solid-bg)] text-[var(--btn-solid-text)] font-semibold text-[13px] px-6 py-2.5 rounded-full hover:shadow-[0_0_20px_var(--accent-glow)] active:scale-[0.97] transition-all duration-300"
               >
                 Done
               </button>
@@ -382,14 +378,14 @@ export function CreateRepoModal({ isOpen, onClose, onCreated }: CreateRepoModalP
                 <button
                   onClick={handleClose}
                   disabled={isCreating}
-                  className="btn-secondary px-5 py-2.5 rounded-[12px] ios-subhead font-medium"
+                  className="text-[13px] font-medium px-5 py-2.5 rounded-full bg-[var(--input-bg)] text-[var(--text-muted)] hover:bg-[var(--input-border)] transition-all active:scale-[0.97]"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleCreate}
                   disabled={isCreating || !name.trim()}
-                  className="btn-primary px-5 py-2.5 rounded-[12px] ios-subhead font-medium inline-flex items-center gap-2 disabled:opacity-40 disabled:pointer-events-none"
+                  className="inline-flex items-center gap-2 bg-[var(--btn-solid-bg)] text-[var(--btn-solid-text)] font-semibold text-[13px] px-5 py-2.5 rounded-full hover:shadow-[0_0_20px_var(--accent-glow)] active:scale-[0.97] transition-all duration-300 disabled:opacity-40 disabled:pointer-events-none"
                 >
                   {isCreating ? (
                     <Loader2 className="w-4 h-4 animate-spin" />

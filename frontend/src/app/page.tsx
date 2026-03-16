@@ -373,7 +373,7 @@ export default function HomePage() {
                   num: '03',
                   icon: <Play className="w-5 h-5" />,
                   title: 'Explore, listen, and experiment',
-                  desc: 'Hit play and watch the code scroll in sync with AI narration. Tap into interactive architecture diagrams, trace dependencies visually, and spin up a live sandbox to test any snippetgit all without leaving the page.',
+                  desc: 'Hit play and watch the code scroll in sync with AI narration. Tap into interactive architecture diagrams, trace dependencies visually, and spin up a live sandbox to test any snippet all without leaving the page.',
                   accent: '#22d3ee',
                 },
               ].map((step, i) => (

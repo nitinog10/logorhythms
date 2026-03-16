@@ -38,28 +38,28 @@ export function Sidebar() {
 
   if (!mounted) {
     return (
-      <aside className="h-screen w-[260px] bg-dv-surface/60 backdrop-blur-ios border-r border-dv-border flex flex-col sticky top-0" />
+      <aside className="h-screen w-[260px] bg-[var(--card-bg)]/80 backdrop-blur-2xl border-r border-[var(--card-border)] flex flex-col sticky top-0" />
     )
   }
 
   return (
     <aside
       className={clsx(
-        'h-screen sticky top-0 bg-dv-surface/60 backdrop-blur-ios border-r border-dv-border flex flex-col transition-all duration-300 relative group/sidebar',
+        'h-screen sticky top-0 bg-[var(--card-bg)]/80 backdrop-blur-2xl border-r border-[var(--card-border)] flex flex-col transition-all duration-300 relative group/sidebar',
         isCollapsed ? 'w-[72px]' : 'w-[260px]'
       )}
     >
       {/* Logo */}
-      <div className="h-14 flex items-center px-5 border-b border-dv-border-subtle">
+      <div className="h-14 flex items-center px-5 border-b border-[var(--text-faint)]">
         <Link href="/" className="flex items-center gap-3 min-w-0">
-          <img src="/logo.png" alt="DocuVerse" className="w-8 h-8 rounded-[10px] flex-shrink-0 shadow-ios-sm object-cover" />
+          <img src="/logo.png" alt="DocuVerse" className="w-8 h-8 rounded-[10px] flex-shrink-0 shadow-[0_2px_8px_rgba(0,0,0,0.3)] object-cover" />
           <span
             className={clsx(
-              'ios-body font-bold text-dv-text tracking-tight transition-all duration-300',
+              'text-[15px] font-bold text-[var(--text-primary)] tracking-tight transition-all duration-300',
               isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'
             )}
           >
-            Docu<span className="text-dv-accent">Verse</span>
+            Docu<span className="text-indigo-400">Verse</span>
           </span>
         </Link>
       </div>
@@ -75,28 +75,28 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={clsx(
-                'flex items-center gap-3 px-3 py-2.5 rounded-[10px] transition-all duration-150 group/item relative active:scale-[0.98]',
+                'flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 group/item relative active:scale-[0.98]',
                 isActive
-                  ? 'bg-dv-accent/10 text-dv-accent'
-                  : 'text-dv-text-muted hover:text-dv-text hover:bg-[var(--glass-4)]'
+                  ? 'bg-indigo-500/10 text-indigo-400'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)]'
               )}
             >
               {isActive && (
                 <motion.div
                   layoutId="sidebar-active"
-                  className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full bg-dv-accent"
+                  className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-indigo-500"
                   transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                 />
               )}
               <div className={clsx(
-                'w-7 h-7 rounded-[8px] flex items-center justify-center flex-shrink-0 transition-colors',
-                isActive ? 'bg-dv-accent/15' : 'bg-[var(--glass-6)]'
+                'w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors',
+                isActive ? 'bg-indigo-500/15' : 'bg-[var(--input-bg)]'
               )}>
                 <Icon className="w-[15px] h-[15px]" />
               </div>
               <span
                 className={clsx(
-                  'ios-subhead font-medium transition-all duration-300',
+                  'text-[14px] font-medium transition-all duration-300',
                   isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'
                 )}
               >
@@ -108,10 +108,10 @@ export function Sidebar() {
       </nav>
 
       {/* User section */}
-      <div className="p-3 border-t border-dv-border-subtle">
+      <div className="p-3 border-t border-[var(--text-faint)]">
         <div
           className={clsx(
-            'flex items-center gap-3 px-3 py-2 rounded-[10px]',
+            'flex items-center gap-3 px-3 py-2 rounded-xl',
             isCollapsed ? 'justify-center' : ''
           )}
         >
@@ -119,10 +119,10 @@ export function Sidebar() {
             <img
               src={user.avatarUrl}
               alt={user.username}
-              className="w-8 h-8 rounded-full flex-shrink-0 ring-1 ring-dv-border"
+              className="w-8 h-8 rounded-full flex-shrink-0 ring-1 ring-[var(--input-border)]"
             />
           ) : (
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-dv-accent/30 to-dv-indigo/30 flex items-center justify-center flex-shrink-0 text-xs font-bold text-dv-accent">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500/30 to-purple-500/30 flex items-center justify-center flex-shrink-0 text-xs font-bold text-indigo-400">
               {user?.username?.charAt(0).toUpperCase() || 'U'}
             </div>
           )}
@@ -132,13 +132,13 @@ export function Sidebar() {
               isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'
             )}
           >
-            <p className="ios-caption1 font-medium truncate">{user?.username || 'Developer'}</p>
-            <p className="ios-caption2 text-dv-text-muted truncate">{user?.email || 'Connected'}</p>
+            <p className="text-[13px] font-medium text-[var(--text-primary)] truncate">{user?.username || 'Developer'}</p>
+            <p className="text-[11px] text-[var(--text-muted)] truncate">{user?.email || 'Connected'}</p>
           </div>
           {!isCollapsed && (
             <button
               onClick={handleLogout}
-              className="p-1.5 rounded-[8px] text-dv-text-muted hover:text-dv-error hover:bg-dv-error/10 transition-all active:scale-[0.92]"
+              className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-red-400 hover:bg-red-500/10 transition-all active:scale-[0.92]"
               title="Sign out"
             >
               <LogOut className="w-3.5 h-3.5" />
@@ -151,14 +151,14 @@ export function Sidebar() {
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
         className={clsx(
-          'absolute top-1/2 -right-3 w-6 h-6 rounded-full bg-dv-surface/80 backdrop-blur-sm border border-dv-border flex items-center justify-center',
-          'hover:bg-dv-elevated transition-all z-10 active:scale-[0.9]',
+          'absolute top-1/2 -right-3 w-6 h-6 rounded-full bg-[var(--card-bg)] border border-[var(--input-border)] flex items-center justify-center',
+          'hover:bg-[var(--hover-bg)] transition-all z-10 active:scale-[0.9]',
           'opacity-0 group-hover/sidebar:opacity-100'
         )}
       >
         <ChevronLeft
           className={clsx(
-            'w-3 h-3 text-dv-text-muted transition-transform duration-300',
+            'w-3 h-3 text-[var(--text-muted)] transition-transform duration-300',
             isCollapsed && 'rotate-180'
           )}
         />

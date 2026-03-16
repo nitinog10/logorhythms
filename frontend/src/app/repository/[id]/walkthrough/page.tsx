@@ -181,28 +181,28 @@ export default function WalkthroughPage({ params }: { params: { id: string } }) 
   }
 
   return (
-    <div className="h-screen bg-dv-bg flex flex-col">
-      {/* Header — iOS frosted glass */}
-      <header className="flex items-center justify-between px-6 h-14 glass-bar flex-shrink-0">
+    <div className="h-screen bg-[var(--page-bg)] flex flex-col">
+      {/* Header — frosted glass */}
+      <header className="flex items-center justify-between px-6 h-14 bg-[var(--page-bg)]/70 backdrop-blur-2xl backdrop-saturate-[1.8] border-b border-[var(--card-border)] flex-shrink-0">
         <div className="flex items-center gap-4">
           <Link
             href={`/repository/${params.id}`}
-            className="p-1.5 rounded-[10px] hover:bg-dv-elevated/60 transition-colors"
+            className="p-1.5 rounded-[10px] hover:bg-[var(--input-bg)] transition-colors"
           >
-            <ArrowLeft className="w-4 h-4 text-dv-text-muted" />
+            <ArrowLeft className="w-4 h-4 text-[var(--text-secondary)]" />
           </Link>
           <div className="flex items-center gap-3">
-            <div className="w-7 h-7 rounded-[8px] bg-dv-accent/10 flex items-center justify-center">
-              <GitBranch className="w-3.5 h-3.5 text-dv-accent" />
+            <div className="w-7 h-7 rounded-[8px] bg-indigo-500/10 border border-indigo-500/15 flex items-center justify-center">
+              <GitBranch className="w-3.5 h-3.5 text-indigo-400" />
             </div>
             <div>
-              <h1 className="text-ios-subhead font-semibold">{repo?.name || 'Repository'}</h1>
-              <p className="text-ios-caption2 text-dv-text-muted truncate max-w-[200px]">{selectedFile || 'Select a file'}</p>
+              <h1 className="text-[14px] font-semibold tracking-[-0.01em] text-[var(--text-primary)]">{repo?.name || 'Repository'}</h1>
+              <p className="text-[11px] text-[var(--text-secondary)] truncate max-w-[200px]">{selectedFile || 'Select a file'}</p>
             </div>
           </div>
         </div>
 
-        <div className="ios-segmented">
+        <div className="flex items-center bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-0.5">
           <PanelButton
             active={activePanel === 'files'}
             onClick={() => setActivePanel('files')}
@@ -241,7 +241,7 @@ export default function WalkthroughPage({ params }: { params: { id: string } }) 
           <>
             {/* Side panel */}
             <motion.div
-              className="w-72 border-r border-white/[0.04] bg-dv-surface/60 backdrop-blur-xl overflow-hidden flex-shrink-0"
+              className="w-72 border-r border-[var(--card-border)] bg-[var(--card-bg)]/80 backdrop-blur-xl overflow-hidden flex-shrink-0"
               initial={{ x: -20, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
             >
@@ -268,37 +268,43 @@ export default function WalkthroughPage({ params }: { params: { id: string } }) 
                   <span className="text-sm text-dv-text-muted">Loading file…</span>
                 </div>
               ) : !playerScript ? (
-                <div className="h-full flex flex-col items-center justify-center px-8">
-                  <div className="w-14 h-14 rounded-ios bg-dv-accent/10 flex items-center justify-center mb-4">
-                    <Sparkles className="w-7 h-7 text-dv-accent" />
-                  </div>
-                  <h2 className="text-ios-title3 font-semibold mb-2">Generate a Walkthrough</h2>
-                  <p className="text-ios-subhead text-dv-text-muted text-center max-w-md mb-6">
-                    AI will analyze <span className="text-dv-text font-semibold">{selectedFile.split('/').pop()}</span> and create
-                    a narrated, step-by-step code walkthrough with voice.
-                  </p>
-                  <button
-                    onClick={handleGenerate}
-                    disabled={isGenerating || !selectedFile}
-                    className="btn-primary flex items-center gap-2 disabled:opacity-50"
-                  >
-                    {isGenerating ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Generating…
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-4 h-4" />
-                        Generate Walkthrough
-                      </>
-                    )}
-                  </button>
-                  {codeContent && (
-                    <p className="text-xs text-dv-text-muted mt-4">
-                      {codeContent.split('\n').length} lines · {selectedFile.split('.').pop()?.toUpperCase()}
+                <div className="h-full flex flex-col items-center justify-center px-8 relative">
+                  {/* Subtle ambient glow */}
+                  <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[200px] bg-purple-500/[0.04] rounded-full blur-[80px] pointer-events-none" />
+                  <div className="relative">
+                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500/15 to-indigo-500/15 border border-purple-500/10 flex items-center justify-center mx-auto mb-6 shadow-[0_0_40px_rgba(168,85,247,0.08)]">
+                      <Sparkles className="w-7 h-7 text-purple-400" />
+                    </div>
+                    <h2 className="text-[22px] font-bold tracking-[-0.02em] mb-2 text-center text-[var(--text-primary)]">Generate a Walkthrough</h2>
+                    <p className="text-[14px] text-[var(--text-secondary)] text-center max-w-md mb-8 leading-relaxed">
+                      AI will analyze <span className="text-[var(--text-primary)] font-semibold">{selectedFile.split('/').pop()}</span> and create
+                      a narrated, step-by-step code walkthrough with voice.
                     </p>
-                  )}
+                    <div className="flex justify-center">
+                      <button
+                        onClick={handleGenerate}
+                        disabled={isGenerating || !selectedFile}
+                        className="inline-flex items-center gap-2.5 bg-white text-black font-semibold text-[14px] px-7 py-3 rounded-full hover:shadow-[0_0_30px_rgba(168,85,247,0.3)] active:scale-[0.97] transition-all duration-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        {isGenerating ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Generating…
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-4 h-4" />
+                            Generate Walkthrough
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    {codeContent && (
+                      <p className="text-[11px] text-[var(--text-muted)] mt-5 text-center font-mono">
+                        {codeContent.split('\n').length} lines · {selectedFile.split('.').pop()?.toUpperCase()}
+                      </p>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <WalkthroughPlayer
@@ -368,12 +374,14 @@ function PanelButton({
     <button
       onClick={onClick}
       className={clsx(
-        'ios-segmented-item flex items-center gap-1.5',
-        active && 'active'
+        'px-3.5 py-1.5 rounded-[10px] text-[12px] font-semibold flex items-center gap-1.5 transition-all',
+        active
+          ? 'bg-[var(--input-border)] text-[var(--text-primary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]'
+          : 'text-[var(--text-secondary)] hover:text-[var(--text-secondary)]'
       )}
     >
       {icon}
-      <span className="font-semibold">{label}</span>
+      <span>{label}</span>
     </button>
   )
 }

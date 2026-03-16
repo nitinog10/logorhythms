@@ -22,7 +22,7 @@ import { files, ImpactAnalysis, CodebaseImpact } from '@/lib/api'
 import { CreateIssueButton } from '@/components/github/CreateIssueButton'
 import { ImplementFixButton } from '@/components/github/ImplementFixButton'
 
-const ease = [0.25, 0.1, 0.25, 1] as const
+const ease = [0.23, 1, 0.32, 1] as const
 
 type AnalysisMode = 'file' | 'codebase'
 
@@ -82,7 +82,6 @@ export function ImpactPanel({ repositoryId, filePath, fullName }: ImpactPanelPro
     }
   }
 
-  /* auto-run on mount / mode change */
   useEffect(() => {
     stopBrief()
     if (mode === 'codebase') {
@@ -96,7 +95,6 @@ export function ImpactPanel({ repositoryId, filePath, fullName }: ImpactPanelPro
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repositoryId, filePath, mode])
 
-  /* mermaid render */
   const mermaidCode =
     mode === 'codebase' ? codebaseImpact?.impact_mermaid : impact?.impact_mermaid
 
@@ -106,7 +104,6 @@ export function ImpactPanel({ repositoryId, filePath, fullName }: ImpactPanelPro
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mermaidCode])
 
-  // Re-render mermaid when theme changes
   useEffect(() => {
     const html = document.documentElement
     const observer = new MutationObserver(() => {
@@ -193,7 +190,7 @@ export function ImpactPanel({ repositoryId, filePath, fullName }: ImpactPanelPro
       setGraphStatus('error')
       if (containerRef.current) {
         containerRef.current.innerHTML =
-          `<div class="flex flex-col items-center gap-2 py-8"><p class="text-[13px] text-dv-error">Could not render impact graph</p><pre class="text-[11px] text-dv-text/30 bg-[var(--glass-4)] p-3 rounded-xl max-w-xl overflow-auto max-h-40">${code}</pre></div>`
+          `<div class="flex flex-col items-center gap-2 py-8"><p class="text-[13px] text-red-400">Could not render impact graph</p><pre class="text-[11px] text-[var(--text-secondary)] bg-[var(--input-bg)] p-3 rounded-xl max-w-xl overflow-auto max-h-40">${code}</pre></div>`
       }
     }
   }
@@ -210,10 +207,7 @@ export function ImpactPanel({ repositoryId, filePath, fullName }: ImpactPanelPro
 
   const toggleBrief = () => {
     if (!currentBrief) return
-    if (isSpeaking) {
-      stopBrief()
-      return
-    }
+    if (isSpeaking) { stopBrief(); return }
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
 
     const utterance = new SpeechSynthesisUtterance(currentBrief)
@@ -229,49 +223,48 @@ export function ImpactPanel({ repositoryId, filePath, fullName }: ImpactPanelPro
 
   const riskColor = (level: string) =>
     level === 'high'
-      ? { bg: 'bg-dv-error/10', text: 'text-dv-error', border: 'border-dv-error/20' }
+      ? { bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/20' }
       : level === 'medium'
-      ? { bg: 'bg-dv-orange/10', text: 'text-dv-orange', border: 'border-dv-orange/20' }
-      : { bg: 'bg-dv-success/10', text: 'text-dv-success', border: 'border-dv-success/20' }
+      ? { bg: 'bg-orange-500/10', text: 'text-orange-400', border: 'border-orange-500/20' }
+      : { bg: 'bg-green-500/10', text: 'text-green-400', border: 'border-green-500/20' }
 
   const riskClasses = (level: string) => {
     const c = riskColor(level)
     return `${c.bg} ${c.text} ${c.border}`
   }
 
-  /* =========== RENDER =========== */
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-dv-bg relative">
+    <div className="h-full flex flex-col overflow-hidden bg-[var(--page-bg)] relative">
       {/* Ambient glows */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-[-20%] right-[10%] w-[500px] h-[400px] bg-dv-orange/[0.03] rounded-full blur-[140px]" />
-        <div className="absolute bottom-[-10%] left-[20%] w-[400px] h-[300px] bg-dv-error/[0.02] rounded-full blur-[120px]" />
+        <div className="absolute top-[-20%] right-[10%] w-[500px] h-[400px] bg-orange-500/[0.03] rounded-full blur-[140px]" />
+        <div className="absolute bottom-[-10%] left-[20%] w-[400px] h-[300px] bg-red-500/[0.02] rounded-full blur-[120px]" />
       </div>
 
-      {/* -- Top toolbar � frosted glass -- */}
-      <div className="relative z-10 bg-[var(--bar-bg)] backdrop-blur-2xl backdrop-saturate-[1.8] border-b border-dv-border flex-shrink-0">
+      {/* ── Frosted toolbar ── */}
+      <div className="relative z-10 bg-[var(--page-bg)]/70 backdrop-blur-2xl backdrop-saturate-[1.8] border-b border-[var(--card-border)] flex-shrink-0">
         <div className="flex items-center justify-between px-6 h-14">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-dv-orange/10 flex items-center justify-center">
-              <Zap className="w-4 h-4 text-dv-orange" />
+            <div className="w-8 h-8 rounded-xl bg-orange-500/10 border border-orange-500/15 flex items-center justify-center">
+              <Zap className="w-4 h-4 text-orange-400" />
             </div>
             <div>
-              <h2 className="text-[15px] font-semibold tracking-[-0.01em]">Change Impact</h2>
-              <p className="text-[11px] text-dv-text/25 tracking-[-0.01em]">
+              <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-[var(--text-primary)]">Change Impact</h2>
+              <p className="text-[11px] text-[var(--text-muted)] tracking-[-0.01em]">
                 {mode === 'codebase' ? 'Full codebase analysis' : filePath.split('/').pop() || 'Select a file'}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Mode toggle � glass segmented */}
-            <div className="flex items-center bg-[var(--glass-4)] border border-dv-border rounded-xl p-0.5">
+            {/* Mode toggle */}
+            <div className="flex items-center bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-0.5">
               <button
                 onClick={() => setMode('codebase')}
                 className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-[10px] text-[12px] font-semibold transition-all ${
                   mode === 'codebase'
-                    ? 'bg-[var(--glass-10)] text-dv-text shadow-[var(--inset)]'
-                    : 'text-dv-text/30 hover:text-dv-text/50'
+                    ? 'bg-[var(--input-border)] text-[var(--text-primary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-secondary)]'
                 }`}
               >
                 <BarChart3 className="w-3 h-3" />
@@ -281,8 +274,8 @@ export function ImpactPanel({ repositoryId, filePath, fullName }: ImpactPanelPro
                 onClick={() => setMode('file')}
                 className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-[10px] text-[12px] font-semibold transition-all ${
                   mode === 'file'
-                    ? 'bg-[var(--glass-10)] text-dv-text shadow-[var(--inset)]'
-                    : 'text-dv-text/30 hover:text-dv-text/50'
+                    ? 'bg-[var(--input-border)] text-[var(--text-primary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-secondary)]'
                 }`}
               >
                 <FileCode className="w-3 h-3" />
@@ -294,7 +287,7 @@ export function ImpactPanel({ repositoryId, filePath, fullName }: ImpactPanelPro
             {mode === 'file' && (
               <div className="flex items-center gap-2">
                 <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-dv-text/20" />
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-faint)]" />
                   <input
                     type="text"
                     value={symbol}
@@ -303,13 +296,13 @@ export function ImpactPanel({ repositoryId, filePath, fullName }: ImpactPanelPro
                       if (e.key === 'Enter') runFileAnalysis()
                     }}
                     placeholder="Symbol (optional)"
-                    className="w-44 pl-8 pr-3 py-1.5 text-[12px] bg-[var(--glass-4)] border border-dv-border rounded-xl text-dv-text placeholder:text-dv-text/20 focus:outline-none focus:ring-1 focus:ring-dv-orange/25 focus:border-dv-orange/30 transition-all"
+                    className="w-44 pl-8 pr-3 py-1.5 text-[12px] bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-orange-500/25 focus:border-orange-500/30 transition-all"
                   />
                 </div>
                 <button
                   onClick={() => runFileAnalysis()}
                   disabled={isLoading}
-                  className="flex items-center gap-1.5 px-4 py-1.5 text-[12px] font-semibold rounded-xl bg-dv-orange/10 text-dv-orange hover:bg-dv-orange/15 transition-all disabled:opacity-40 active:scale-[0.97]"
+                  className="flex items-center gap-1.5 px-4 py-1.5 text-[12px] font-semibold rounded-xl bg-orange-500/10 text-orange-400 hover:bg-orange-500/15 transition-all disabled:opacity-40 active:scale-[0.97]"
                 >
                   {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
                   Analyze
@@ -322,14 +315,14 @@ export function ImpactPanel({ repositoryId, filePath, fullName }: ImpactPanelPro
               <button
                 onClick={runCodebaseAnalysis}
                 disabled={isLoading}
-                className="flex items-center gap-1.5 px-4 py-1.5 text-[12px] font-semibold rounded-xl bg-dv-orange/10 text-dv-orange hover:bg-dv-orange/15 transition-all disabled:opacity-40 active:scale-[0.97]"
+                className="flex items-center gap-1.5 px-4 py-1.5 text-[12px] font-semibold rounded-xl bg-orange-500/10 text-orange-400 hover:bg-orange-500/15 transition-all disabled:opacity-40 active:scale-[0.97]"
               >
                 {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
                 Refresh
               </button>
             )}
 
-            {/* GitHub: Create Issue */}
+            {/* Create Issue */}
             {fullName && (impact || codebaseImpact) && (() => {
               const [owner, repo] = fullName.split('/')
               return owner && repo ? (
@@ -346,16 +339,16 @@ export function ImpactPanel({ repositoryId, filePath, fullName }: ImpactPanelPro
         </div>
       </div>
 
-      {/* -- Body -- */}
+      {/* ── Body ── */}
       <div className="relative z-[1] flex-1 overflow-y-auto">
         {/* Loading */}
         {isLoading && (
           <div className="flex flex-col items-center justify-center py-24">
-            <div className="w-14 h-14 rounded-2xl bg-dv-orange/10 flex items-center justify-center mb-4">
-              <Loader2 className="w-6 h-6 text-dv-orange animate-spin" />
+            <div className="w-14 h-14 rounded-2xl bg-orange-500/10 border border-orange-500/15 flex items-center justify-center mb-4">
+              <Loader2 className="w-6 h-6 text-orange-400 animate-spin" />
             </div>
-            <span className="text-[14px] text-dv-text/25">
-              Analyzing {mode === 'codebase' ? 'codebase' : 'file'} impact�
+            <span className="text-[14px] text-[var(--text-muted)]">
+              Analyzing {mode === 'codebase' ? 'codebase' : 'file'} impact…
             </span>
           </div>
         )}
@@ -363,13 +356,13 @@ export function ImpactPanel({ repositoryId, filePath, fullName }: ImpactPanelPro
         {/* Error */}
         {error && !isLoading && (
           <motion.div
-            className="mx-6 mt-6 flex items-start gap-3 p-4 rounded-2xl bg-dv-error/8 border border-dv-error/10"
+            className="mx-6 mt-6 flex items-start gap-3 p-4 rounded-2xl bg-red-500/8 border border-red-500/10"
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, ease }}
           >
-            <AlertCircle className="w-5 h-5 text-dv-error flex-shrink-0 mt-0.5" />
-            <p className="text-[13px] text-dv-error/80">{error}</p>
+            <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+            <p className="text-[13px] text-red-400/80">{error}</p>
           </motion.div>
         )}
 
@@ -377,7 +370,7 @@ export function ImpactPanel({ repositoryId, filePath, fullName }: ImpactPanelPro
         {mode === 'codebase' && codebaseImpact && !isLoading && (
           <div className="px-6 py-8 space-y-6 max-w-[1100px] mx-auto">
 
-            {/* -- Risk badge + score -- */}
+            {/* Risk badge + score */}
             <motion.div
               className="flex items-center gap-5"
               initial={{ opacity: 0, y: 12 }}
@@ -390,38 +383,37 @@ export function ImpactPanel({ repositoryId, filePath, fullName }: ImpactPanelPro
                 {codebaseImpact.overall_risk_level} risk
               </span>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-[28px] font-bold tracking-[-0.03em] text-dv-text">{codebaseImpact.overall_risk_score}</span>
-                <span className="text-[13px] text-dv-text/25">/100</span>
+                <span className="text-[28px] font-bold tracking-[-0.03em] text-[var(--text-primary)]">{codebaseImpact.overall_risk_score}</span>
+                <span className="text-[13px] text-[var(--text-muted)]">/100</span>
               </div>
             </motion.div>
 
-            {/* -- Stat cards � bento row -- */}
+            {/* Stat cards */}
             <motion.div
               className="grid grid-cols-4 gap-3"
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.05, ease }}
             >
-              <StatCard label="Source Files" value={codebaseImpact.total_files} icon={<FileCode className="w-[18px] h-[18px]" />} color="#0a84ff" />
+              <StatCard label="Source Files" value={codebaseImpact.total_files} icon={<FileCode className="w-[18px] h-[18px]" />} color="#6366f1" />
               <StatCard label="Dependencies" value={codebaseImpact.total_dependencies} icon={<Network className="w-[18px] h-[18px]" />} color="#ff9f0a" />
-              <StatCard label="Components" value={codebaseImpact.connected_components} icon={<Layers className="w-[18px] h-[18px]" />} color="#bf5af2" />
+              <StatCard label="Components" value={codebaseImpact.connected_components} icon={<Layers className="w-[18px] h-[18px]" />} color="#a855f7" />
               <StatCard label="Is DAG" value={codebaseImpact.is_dag ? 'Yes' : 'No'} icon={<Shield className="w-[18px] h-[18px]" />} color={codebaseImpact.is_dag ? '#30d158' : '#ff453a'} />
             </motion.div>
 
-            {/* -- Brief + Recommended Actions -- */}
+            {/* Brief + Recommended Actions */}
             <motion.div
               className="grid grid-cols-2 gap-4"
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1, ease }}
             >
-              {/* Brief */}
-              <div className="rounded-2xl bg-[var(--glass-3)] backdrop-blur-2xl border border-dv-border p-5 shadow-[var(--inset)]">
+              <GlassCard>
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-[13px] font-semibold text-dv-text/90">Codebase Brief</h3>
+                  <h3 className="text-[13px] font-semibold text-[var(--text-primary)]">Codebase Brief</h3>
                   <button
                     onClick={toggleBrief}
-                    className="flex items-center gap-1.5 px-3 py-1 text-[11px] font-semibold rounded-lg bg-dv-orange/10 text-dv-orange hover:bg-dv-orange/15 transition-all active:scale-[0.95]"
+                    className="flex items-center gap-1.5 px-3 py-1 text-[11px] font-semibold rounded-lg bg-orange-500/10 text-orange-400 hover:bg-orange-500/15 transition-all active:scale-[0.95]"
                   >
                     {isSpeaking ? (
                       <><Pause className="w-3 h-3" /> Stop</>
@@ -430,28 +422,27 @@ export function ImpactPanel({ repositoryId, filePath, fullName }: ImpactPanelPro
                     )}
                   </button>
                 </div>
-                <p className="text-[13px] text-dv-text/35 leading-relaxed">
+                <p className="text-[13px] text-[var(--text-secondary)] leading-relaxed">
                   {codebaseImpact.brief_script}
                 </p>
-              </div>
+              </GlassCard>
 
-              {/* Recommended actions */}
-              <div className="rounded-2xl bg-[var(--glass-3)] backdrop-blur-2xl border border-dv-border p-5 shadow-[var(--inset)]">
-                <h3 className="text-[13px] font-semibold text-dv-text/90 mb-4">Recommended Actions</h3>
+              <GlassCard>
+                <h3 className="text-[13px] font-semibold text-[var(--text-primary)] mb-4">Recommended Actions</h3>
                 <ol className="space-y-2.5">
                   {codebaseImpact.recommended_actions.map((step, i) => (
                     <li key={i} className="flex items-start gap-2.5">
-                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-dv-orange/10 text-dv-orange text-[10px] flex items-center justify-center font-bold mt-0.5">
+                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-orange-500/10 text-orange-400 text-[10px] flex items-center justify-center font-bold mt-0.5">
                         {i + 1}
                       </span>
-                      <span className="text-[13px] text-dv-text/35 leading-relaxed">{step}</span>
+                      <span className="text-[13px] text-[var(--text-secondary)] leading-relaxed">{step}</span>
                     </li>
                   ))}
                 </ol>
                 {fullName && codebaseImpact.recommended_actions.length > 0 && (() => {
                   const [owner, repo] = fullName.split('/')
                   return owner && repo ? (
-                    <div className="mt-4 pt-4 border-t border-dv-border-subtle">
+                    <div className="mt-4 pt-4 border-t border-[var(--text-faint)]">
                       <ImplementFixButton
                         owner={owner}
                         repo={repo}
@@ -461,100 +452,66 @@ export function ImpactPanel({ repositoryId, filePath, fullName }: ImpactPanelPro
                     </div>
                   ) : null
                 })()}
-              </div>
+              </GlassCard>
             </motion.div>
 
-            {/* -- Hotspots + Most Imported -- */}
+            {/* Hotspots + Most Imported */}
             <motion.div
               className="grid grid-cols-2 gap-4"
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.15, ease }}
             >
-              {/* Hotspot files */}
               {codebaseImpact.hotspots.length > 0 && (
-                <div className="rounded-2xl bg-[var(--glass-3)] backdrop-blur-2xl border border-dv-border overflow-hidden shadow-[var(--inset)]">
-                  <div className="px-5 py-3.5 border-b border-dv-border-subtle">
-                    <h3 className="text-[13px] font-semibold text-dv-text/90">
-                      Hotspot Files
-                      <span className="ml-2 text-[11px] font-normal text-dv-text/20">{codebaseImpact.hotspots.length}</span>
-                    </h3>
-                  </div>
-                  <div className="max-h-72 overflow-y-auto">
-                    {codebaseImpact.hotspots.map((hs, i) => (
-                      <div
-                        key={hs.file}
-                        className={`flex items-center justify-between px-5 py-2.5 hover:bg-[var(--glass-3)] transition-colors ${
-                          i < codebaseImpact.hotspots.length - 1 ? 'border-b border-dv-border-subtle' : ''
-                        }`}
-                      >
-                        <span className="text-[12px] text-dv-text/35 font-mono truncate flex-1 mr-3">
-                          {hs.file}
+                <ListCard title="Hotspot Files" count={codebaseImpact.hotspots.length}>
+                  {codebaseImpact.hotspots.map((hs, i) => (
+                    <ListRow key={hs.file} isLast={i === codebaseImpact.hotspots.length - 1}>
+                      <span className="text-[12px] text-[var(--text-secondary)] font-mono truncate flex-1 mr-3">{hs.file}</span>
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        <span className="text-[11px] text-[var(--text-faint)]">{hs.direct_dependents}d / {hs.total_affected}a</span>
+                        <span className={`px-2 py-0.5 text-[10px] font-bold rounded-md border ${riskClasses(hs.risk_level)}`}>
+                          {hs.risk_score}
                         </span>
-                        <div className="flex items-center gap-3 flex-shrink-0">
-                          <span className="text-[11px] text-dv-text/20">
-                            {hs.direct_dependents}d / {hs.total_affected}a
-                          </span>
-                          <span
-                            className={`px-2 py-0.5 text-[10px] font-bold rounded-md border ${riskClasses(hs.risk_level)}`}
-                          >
-                            {hs.risk_score}
-                          </span>
-                        </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
+                    </ListRow>
+                  ))}
+                </ListCard>
               )}
-
-              {/* Most imported */}
               {codebaseImpact.most_imported.length > 0 && (
-                <div className="rounded-2xl bg-[var(--glass-3)] backdrop-blur-2xl border border-dv-border overflow-hidden shadow-[var(--inset)]">
-                  <div className="px-5 py-3.5 border-b border-dv-border-subtle">
-                    <h3 className="text-[13px] font-semibold text-dv-text/90">Most Imported</h3>
-                  </div>
-                  <div className="max-h-72 overflow-y-auto">
-                    {codebaseImpact.most_imported.map((m, i) => (
-                      <div
-                        key={m.file}
-                        className={`flex items-center justify-between px-5 py-2.5 hover:bg-[var(--glass-3)] transition-colors ${
-                          i < codebaseImpact.most_imported.length - 1 ? 'border-b border-dv-border-subtle' : ''
-                        }`}
-                      >
-                        <span className="text-[12px] text-dv-text/35 font-mono truncate flex-1 mr-3">
-                          {m.file}
-                        </span>
-                        <span className="text-[11px] text-dv-accent font-semibold whitespace-nowrap">{m.import_count} imports</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <ListCard title="Most Imported">
+                  {codebaseImpact.most_imported.map((m, i) => (
+                    <ListRow key={m.file} isLast={i === codebaseImpact.most_imported.length - 1}>
+                      <span className="text-[12px] text-[var(--text-secondary)] font-mono truncate flex-1 mr-3">{m.file}</span>
+                      <span className="text-[11px] text-indigo-400 font-semibold whitespace-nowrap">{m.import_count} imports</span>
+                    </ListRow>
+                  ))}
+                </ListCard>
               )}
             </motion.div>
 
-            {/* -- Circular deps -- */}
+            {/* Circular deps */}
             {codebaseImpact.circular_dependencies.length > 0 && (
               <motion.div
-                className="rounded-2xl bg-dv-orange/[0.04] border border-dv-orange/10 p-5 shadow-[inset_0_1px_0_rgba(255,159,10,0.04)]"
+                className="rounded-2xl bg-orange-500/[0.04] border border-orange-500/10 p-5"
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.2, ease }}
               >
-                <h3 className="text-[13px] font-semibold text-dv-orange mb-3 flex items-center gap-2">
+                <h3 className="text-[13px] font-semibold text-orange-400 mb-3 flex items-center gap-2">
                   <AlertCircle className="w-4 h-4" />
                   Circular Dependencies
-                  <span className="text-[11px] font-normal text-dv-orange/50">{codebaseImpact.circular_dependencies.length}</span>
+                  <span className="text-[11px] font-normal text-orange-400/50">{codebaseImpact.circular_dependencies.length}</span>
                 </h3>
                 <ul className="space-y-1.5 max-h-48 overflow-y-auto">
                   {codebaseImpact.circular_dependencies.map((cycle, i) => (
-                    <li key={i} className="flex items-center gap-1.5 text-[12px] text-dv-orange/60 font-mono">
+                    <li key={i} className="flex items-center gap-1.5 text-[12px] text-orange-400/60 font-mono">
                       {cycle.map((item, j) => (
                         <span key={j} className="flex items-center gap-1.5">
-                          {j > 0 && <ArrowRight className="w-3 h-3 text-dv-orange/30" />}
+                          {j > 0 && <ArrowRight className="w-3 h-3 text-orange-400/30" />}
                           <span>{item}</span>
                         </span>
                       ))}
-                      <ArrowRight className="w-3 h-3 text-dv-orange/30" />
+                      <ArrowRight className="w-3 h-3 text-orange-400/30" />
                       <span>{cycle[0]}</span>
                     </li>
                   ))}
@@ -562,21 +519,21 @@ export function ImpactPanel({ repositoryId, filePath, fullName }: ImpactPanelPro
               </motion.div>
             )}
 
-            {/* -- Graph -- */}
+            {/* Graph */}
             <motion.div
-              className="rounded-2xl bg-[var(--glass-3)] backdrop-blur-2xl border border-dv-border overflow-hidden shadow-[var(--inset)]"
+              className="rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] overflow-hidden"
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.25, ease }}
             >
-              <div className="px-5 py-3.5 border-b border-dv-border-subtle flex items-center gap-2">
-                <GitBranch className="w-4 h-4 text-dv-orange" />
-                <h3 className="text-[13px] font-semibold text-dv-text/90">Codebase Impact Graph</h3>
+              <div className="px-5 py-3.5 border-b border-[var(--text-faint)] flex items-center gap-2">
+                <GitBranch className="w-4 h-4 text-orange-400" />
+                <h3 className="text-[13px] font-semibold text-[var(--text-primary)]">Codebase Impact Graph</h3>
               </div>
               {graphStatus === 'rendering' && (
                 <div className="flex items-center justify-center py-16">
-                  <Loader2 className="w-5 h-5 text-dv-orange animate-spin mr-2.5" />
-                  <span className="text-[13px] text-dv-text/25">Rendering graph�</span>
+                  <Loader2 className="w-5 h-5 text-orange-400 animate-spin mr-2.5" />
+                  <span className="text-[13px] text-[var(--text-muted)]">Rendering graph…</span>
                 </div>
               )}
               <div
@@ -591,7 +548,7 @@ export function ImpactPanel({ repositoryId, filePath, fullName }: ImpactPanelPro
         {mode === 'file' && impact && !isLoading && (
           <div className="px-6 py-8 space-y-6 max-w-[1100px] mx-auto">
 
-            {/* -- Risk badge + score + symbol -- */}
+            {/* Risk badge + score + symbol */}
             <motion.div
               className="flex items-center gap-5"
               initial={{ opacity: 0, y: 12 }}
@@ -604,41 +561,40 @@ export function ImpactPanel({ repositoryId, filePath, fullName }: ImpactPanelPro
                 {impact.risk_level} risk
               </span>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-[28px] font-bold tracking-[-0.03em] text-dv-text">{impact.risk_score}</span>
-                <span className="text-[13px] text-dv-text/25">/100</span>
+                <span className="text-[28px] font-bold tracking-[-0.03em] text-[var(--text-primary)]">{impact.risk_score}</span>
+                <span className="text-[13px] text-[var(--text-muted)]">/100</span>
               </div>
               {impact.symbol_context && (
-                <span className="ml-auto text-[12px] text-dv-text/25">
-                  {impact.symbol_context.type}: <span className="text-dv-text/60 font-medium">{impact.symbol_context.name}</span>
+                <span className="ml-auto text-[12px] text-[var(--text-muted)]">
+                  {impact.symbol_context.type}: <span className="text-[var(--text-secondary)] font-medium">{impact.symbol_context.name}</span>
                 </span>
               )}
             </motion.div>
 
-            {/* -- Stats -- */}
+            {/* Stats */}
             <motion.div
               className="grid grid-cols-4 gap-3"
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.05, ease }}
             >
-              <StatCard label="Direct Dependents" value={impact.direct_dependents.length} icon={<GitBranch className="w-[18px] h-[18px]" />} color="#0a84ff" />
+              <StatCard label="Direct Dependents" value={impact.direct_dependents.length} icon={<GitBranch className="w-[18px] h-[18px]" />} color="#6366f1" />
               <StatCard label="Total Affected" value={impact.total_affected} icon={<Network className="w-[18px] h-[18px]" />} color="#ff9f0a" />
             </motion.div>
 
-            {/* -- Brief + Refactor Steps -- */}
+            {/* Brief + Refactor Steps */}
             <motion.div
               className="grid grid-cols-2 gap-4"
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1, ease }}
             >
-              {/* Brief */}
-              <div className="rounded-2xl bg-[var(--glass-3)] backdrop-blur-2xl border border-dv-border p-5 shadow-[var(--inset)]">
+              <GlassCard>
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-[13px] font-semibold text-dv-text/90">Impact Brief</h3>
+                  <h3 className="text-[13px] font-semibold text-[var(--text-primary)]">Impact Brief</h3>
                   <button
                     onClick={toggleBrief}
-                    className="flex items-center gap-1.5 px-3 py-1 text-[11px] font-semibold rounded-lg bg-dv-orange/10 text-dv-orange hover:bg-dv-orange/15 transition-all active:scale-[0.95]"
+                    className="flex items-center gap-1.5 px-3 py-1 text-[11px] font-semibold rounded-lg bg-orange-500/10 text-orange-400 hover:bg-orange-500/15 transition-all active:scale-[0.95]"
                   >
                     {isSpeaking ? (
                       <><Pause className="w-3 h-3" /> Stop</>
@@ -647,28 +603,27 @@ export function ImpactPanel({ repositoryId, filePath, fullName }: ImpactPanelPro
                     )}
                   </button>
                 </div>
-                <p className="text-[13px] text-dv-text/35 leading-relaxed">
+                <p className="text-[13px] text-[var(--text-secondary)] leading-relaxed">
                   {impact.brief_script}
                 </p>
-              </div>
+              </GlassCard>
 
-              {/* Refactor steps */}
-              <div className="rounded-2xl bg-[var(--glass-3)] backdrop-blur-2xl border border-dv-border p-5 shadow-[var(--inset)]">
-                <h3 className="text-[13px] font-semibold text-dv-text/90 mb-4">Recommended Refactor Steps</h3>
+              <GlassCard>
+                <h3 className="text-[13px] font-semibold text-[var(--text-primary)] mb-4">Recommended Refactor Steps</h3>
                 <ol className="space-y-2.5">
                   {impact.recommended_refactor_steps.map((step, i) => (
                     <li key={i} className="flex items-start gap-2.5">
-                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-dv-orange/10 text-dv-orange text-[10px] flex items-center justify-center font-bold mt-0.5">
+                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-orange-500/10 text-orange-400 text-[10px] flex items-center justify-center font-bold mt-0.5">
                         {i + 1}
                       </span>
-                      <span className="text-[13px] text-dv-text/35 leading-relaxed">{step}</span>
+                      <span className="text-[13px] text-[var(--text-secondary)] leading-relaxed">{step}</span>
                     </li>
                   ))}
                 </ol>
                 {fullName && impact.recommended_refactor_steps.length > 0 && (() => {
                   const [owner, repo] = fullName.split('/')
                   return owner && repo ? (
-                    <div className="mt-4 pt-4 border-t border-dv-border-subtle">
+                    <div className="mt-4 pt-4 border-t border-[var(--text-faint)]">
                       <ImplementFixButton
                         owner={owner}
                         repo={repo}
@@ -678,31 +633,31 @@ export function ImpactPanel({ repositoryId, filePath, fullName }: ImpactPanelPro
                     </div>
                   ) : null
                 })()}
-              </div>
+              </GlassCard>
             </motion.div>
 
-            {/* -- Circular deps -- */}
+            {/* Circular deps */}
             {impact.circular_dependencies.length > 0 && (
               <motion.div
-                className="rounded-2xl bg-dv-orange/[0.04] border border-dv-orange/10 p-5 shadow-[inset_0_1px_0_rgba(255,159,10,0.04)]"
+                className="rounded-2xl bg-orange-500/[0.04] border border-orange-500/10 p-5"
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.15, ease }}
               >
-                <h3 className="text-[13px] font-semibold text-dv-orange mb-3 flex items-center gap-2">
+                <h3 className="text-[13px] font-semibold text-orange-400 mb-3 flex items-center gap-2">
                   <AlertCircle className="w-4 h-4" />
                   Circular Dependencies
                 </h3>
                 <ul className="space-y-1.5">
                   {impact.circular_dependencies.map((cycle, i) => (
-                    <li key={i} className="flex items-center gap-1.5 text-[12px] text-dv-orange/60 font-mono">
+                    <li key={i} className="flex items-center gap-1.5 text-[12px] text-orange-400/60 font-mono">
                       {cycle.map((item, j) => (
                         <span key={j} className="flex items-center gap-1.5">
-                          {j > 0 && <ArrowRight className="w-3 h-3 text-dv-orange/30" />}
+                          {j > 0 && <ArrowRight className="w-3 h-3 text-orange-400/30" />}
                           <span>{item}</span>
                         </span>
                       ))}
-                      <ArrowRight className="w-3 h-3 text-dv-orange/30" />
+                      <ArrowRight className="w-3 h-3 text-orange-400/30" />
                       <span>{cycle[0]}</span>
                     </li>
                   ))}
@@ -710,77 +665,48 @@ export function ImpactPanel({ repositoryId, filePath, fullName }: ImpactPanelPro
               </motion.div>
             )}
 
-            {/* -- Dependents + Affected files -- */}
+            {/* Dependents + Affected files */}
             <motion.div
               className="grid grid-cols-2 gap-4"
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.2, ease }}
             >
-              {/* Direct dependents */}
               {impact.direct_dependents.length > 0 && (
-                <div className="rounded-2xl bg-[var(--glass-3)] backdrop-blur-2xl border border-dv-border overflow-hidden shadow-[var(--inset)]">
-                  <div className="px-5 py-3.5 border-b border-dv-border-subtle">
-                    <h3 className="text-[13px] font-semibold text-dv-text/90">
-                      Direct Dependents
-                      <span className="ml-2 text-[11px] font-normal text-dv-text/20">{impact.direct_dependents.length}</span>
-                    </h3>
-                  </div>
-                  <ul className="max-h-60 overflow-y-auto">
-                    {impact.direct_dependents.map((dep, i) => (
-                      <li
-                        key={dep}
-                        className={`text-[12px] text-dv-text/35 font-mono truncate py-2.5 px-5 hover:bg-[var(--glass-3)] transition-colors ${
-                          i < impact.direct_dependents.length - 1 ? 'border-b border-dv-border-subtle' : ''
-                        }`}
-                      >
-                        {dep}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                <ListCard title="Direct Dependents" count={impact.direct_dependents.length}>
+                  {impact.direct_dependents.map((dep, i) => (
+                    <ListRow key={dep} isLast={i === impact.direct_dependents.length - 1}>
+                      <span className="text-[12px] text-[var(--text-secondary)] font-mono truncate">{dep}</span>
+                    </ListRow>
+                  ))}
+                </ListCard>
               )}
-
-              {/* Affected files */}
               {impact.affected_files.length > 0 && (
-                <div className="rounded-2xl bg-[var(--glass-3)] backdrop-blur-2xl border border-dv-border overflow-hidden shadow-[var(--inset)]">
-                  <div className="px-5 py-3.5 border-b border-dv-border-subtle">
-                    <h3 className="text-[13px] font-semibold text-dv-text/90">
-                      All Affected Files
-                      <span className="ml-2 text-[11px] font-normal text-dv-text/20">{impact.affected_files.length}</span>
-                    </h3>
-                  </div>
-                  <ul className="max-h-60 overflow-y-auto">
-                    {impact.affected_files.map((f, i) => (
-                      <li
-                        key={f}
-                        className={`text-[12px] text-dv-text/35 font-mono truncate py-2.5 px-5 hover:bg-[var(--glass-3)] transition-colors ${
-                          i < impact.affected_files.length - 1 ? 'border-b border-dv-border-subtle' : ''
-                        }`}
-                      >
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                <ListCard title="All Affected Files" count={impact.affected_files.length}>
+                  {impact.affected_files.map((f, i) => (
+                    <ListRow key={f} isLast={i === impact.affected_files.length - 1}>
+                      <span className="text-[12px] text-[var(--text-secondary)] font-mono truncate">{f}</span>
+                    </ListRow>
+                  ))}
+                </ListCard>
               )}
             </motion.div>
 
-            {/* -- Graph -- */}
+            {/* Graph */}
             <motion.div
-              className="rounded-2xl bg-[var(--glass-3)] backdrop-blur-2xl border border-dv-border overflow-hidden shadow-[var(--inset)]"
+              className="rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] overflow-hidden"
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.25, ease }}
             >
-              <div className="px-5 py-3.5 border-b border-dv-border-subtle flex items-center gap-2">
-                <GitBranch className="w-4 h-4 text-dv-orange" />
-                <h3 className="text-[13px] font-semibold text-dv-text/90">Impact Graph</h3>
+              <div className="px-5 py-3.5 border-b border-[var(--text-faint)] flex items-center gap-2">
+                <GitBranch className="w-4 h-4 text-orange-400" />
+                <h3 className="text-[13px] font-semibold text-[var(--text-primary)]">Impact Graph</h3>
               </div>
               {graphStatus === 'rendering' && (
                 <div className="flex items-center justify-center py-16">
-                  <Loader2 className="w-5 h-5 text-dv-orange animate-spin mr-2.5" />
-                  <span className="text-[13px] text-dv-text/25">Rendering graph�</span>
+                  <Loader2 className="w-5 h-5 text-orange-400 animate-spin mr-2.5" />
+                  <span className="text-[13px] text-[var(--text-muted)]">Rendering graph…</span>
                 </div>
               )}
               <div
@@ -791,17 +717,17 @@ export function ImpactPanel({ repositoryId, filePath, fullName }: ImpactPanelPro
           </div>
         )}
 
-        {/* -- Empty state -- */}
+        {/* Empty state */}
         {!isLoading && !error
           && ((mode === 'file' && !impact) || (mode === 'codebase' && !codebaseImpact)) && (
           <div className="flex flex-col items-center justify-center py-24 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-dv-orange/10 flex items-center justify-center mb-5">
-              <Zap className="w-8 h-8 text-dv-orange/40" />
+            <div className="w-16 h-16 rounded-2xl bg-orange-500/10 border border-orange-500/15 flex items-center justify-center mb-5 shadow-[0_0_40px_rgba(255,159,10,0.08)]">
+              <Zap className="w-8 h-8 text-orange-400/40" />
             </div>
-            <p className="text-[15px] font-semibold text-dv-text/50 mb-2">
+            <p className="text-[15px] font-semibold text-[var(--text-secondary)] mb-2">
               {mode === 'codebase' ? 'Codebase Analysis' : 'File Analysis'}
             </p>
-            <p className="text-[13px] text-dv-text/25 max-w-sm">
+            <p className="text-[13px] text-[var(--text-muted)] max-w-sm">
               {mode === 'codebase'
                 ? 'Analyze the entire codebase for impact hotspots and dependency risks.'
                 : 'Select a file to analyze its change impact and dependency chain.'}
@@ -813,7 +739,42 @@ export function ImpactPanel({ repositoryId, filePath, fullName }: ImpactPanelPro
   )
 }
 
-/* -- Stat Card -- */
+/* ── Glass Card ── */
+function GlassCard({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] p-5">
+      {children}
+    </div>
+  )
+}
+
+/* ── List Card ── */
+function ListCard({ title, count, children }: { title: string; count?: number; children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-[var(--text-faint)]">
+        <h3 className="text-[13px] font-semibold text-[var(--text-primary)]">
+          {title}
+          {count != null && <span className="ml-2 text-[11px] font-normal text-[var(--text-muted)]">{count}</span>}
+        </h3>
+      </div>
+      <div className="max-h-72 overflow-y-auto">{children}</div>
+    </div>
+  )
+}
+
+/* ── List Row ── */
+function ListRow({ children, isLast }: { children: React.ReactNode; isLast: boolean }) {
+  return (
+    <div className={`flex items-center justify-between px-5 py-2.5 hover:bg-[var(--hover-bg)] transition-colors ${
+      !isLast ? 'border-b border-[var(--text-faint)]' : ''
+    }`}>
+      {children}
+    </div>
+  )
+}
+
+/* ── Stat Card ── */
 function StatCard({
   label,
   value,
@@ -826,10 +787,10 @@ function StatCard({
   color: string
 }) {
   return (
-    <div className="rounded-2xl bg-[var(--glass-3)] backdrop-blur-2xl border border-dv-border p-4 shadow-[var(--inset)]">
+    <div className="rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] p-4">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-[11px] font-semibold text-dv-text/25 uppercase tracking-[0.06em]">{label}</span>
-        <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${color}15` }}>
+        <span className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-[0.06em]">{label}</span>
+        <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${color}15`, border: `1px solid ${color}20` }}>
           <span style={{ color }}>{icon}</span>
         </div>
       </div>
