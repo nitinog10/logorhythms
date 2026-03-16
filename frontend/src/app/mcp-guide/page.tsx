@@ -232,56 +232,63 @@ export default function McpGuidePage() {
                                         {activeTab === 'cursor' && (
                                             <div className="space-y-6">
                                                 <p className="text-[15px] text-dv-text/60 leading-relaxed">
-                                                    Cursor IDE supports MCP natively inside their new feature settings.
+                                                    Cursor IDE supports MCP servers through a JSON configuration file, similar to Claude Desktop and Windsurf.
                                                 </p>
 
                                                 <div className="space-y-3">
-                                                    <h4 className="text-[14px] font-bold text-dv-text/80">1. Open Settings</h4>
+                                                    <h4 className="text-[14px] font-bold text-dv-text/80">1. Locate Config File</h4>
                                                     <p className="text-[13px] text-dv-text/50">
-                                                        Go to Cursor Settings {"->"} Features {"->"} <strong>MCP</strong>. Click on <strong>+ Add New MCP Server</strong>.
+                                                        <strong>Mac/Linux:</strong> <code className="bg-black/30 px-1.5 py-0.5 rounded text-dv-purple">~/.cursor/mcp.json</code>
+                                                        <br />
+                                                        <strong>Windows:</strong> <code className="bg-black/30 px-1.5 py-0.5 rounded text-dv-purple">%USERPROFILE%\.cursor\mcp.json</code>
+                                                    </p>
+                                                    <p className="text-[13px] text-dv-text/40">
+                                                        If this file does not exist, create it manually at the path above.
                                                     </p>
                                                 </div>
 
-                                                <div className="space-y-4">
-                                                    <h4 className="text-[14px] font-bold text-dv-text/80">2. Input Configuration</h4>
-
-                                                    <div className="bg-[#0A0A0A] rounded-xl border border-white/10 p-5 space-y-4">
-                                                        <div>
-                                                            <label className="text-[11px] font-bold tracking-wider text-dv-text/40 uppercase block mb-1">Type</label>
-                                                            <div className="text-[14px] font-mono text-dv-purple bg-dv-bg/50 px-3 py-1.5 rounded-lg border border-white/5 inline-block">command</div>
-                                                        </div>
-
-                                                        <div>
-                                                            <label className="text-[11px] font-bold tracking-wider text-dv-text/40 uppercase block mb-1">Name</label>
-                                                            <div className="text-[14px] font-mono text-dv-text/80 bg-dv-bg/50 px-3 py-1.5 rounded-lg border border-white/5 inline-block">DocuVerse</div>
-                                                        </div>
-
-                                                        <div>
-                                                            <label className="text-[11px] font-bold tracking-wider text-dv-text/40 uppercase block mb-1">Command</label>
-                                                            <div className="relative flex">
-                                                                <code className="flex-1 text-[13px] font-mono text-dv-text/80 bg-dv-bg/50 px-3 py-2 rounded-lg border border-white/5 whitespace-nowrap overflow-x-auto pr-10">
-                                                                    node /absolute/path/to/logorhythms/mcp-server/dist/index.js
-                                                                </code>
-                                                                <button
-                                                                    onClick={() => copyToClipboard(`node /absolute/path/to/logorhythms/mcp-server/dist/index.js`)}
-                                                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md hover:bg-white/10 text-dv-text/40"
-                                                                >
-                                                                    <Copy className="w-3.5 h-3.5" />
-                                                                </button>
-                                                            </div>
-                                                        </div>
+                                                <div className="space-y-3">
+                                                    <h4 className="text-[14px] font-bold text-dv-text/80">2. Add Server Configuration</h4>
+                                                    <div className="relative">
+                                                        <button
+                                                            onClick={() => copyToClipboard(`{
+  "mcpServers": {
+    "docuverse": {
+      "command": "node",
+      "args": ["/absolute/path/to/docuverse/mcp-server/dist/index.js"],
+      "env": {
+        "DOCUVERSE_JWT_TOKEN": "<YOUR_JWT_TOKEN_HERE>",
+        "DOCUVERSE_API_URL": "https://xpbgkuukxp.ap-south-1.awsapprunner.com/api"
+      }
+    }
+  }
+}`)}
+                                                            className="absolute top-3 right-3 p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-dv-text/40 transition-colors"
+                                                        >
+                                                            <Copy className="w-4 h-4" />
+                                                        </button>
+                                                        <pre className="bg-[#0A0A0A] border border-white/10 p-5 rounded-xl text-[13px] overflow-x-auto font-mono text-dv-text/80 leading-relaxed shadow-inner">
+                                                            {`{
+  "mcpServers": {
+    "docuverse": {
+      "command": "node",
+      "args": ["/absolute/path/to/docuverse/mcp-server/dist/index.js"],
+      "env": {
+        "DOCUVERSE_JWT_TOKEN": "<YOUR_JWT_TOKEN_HERE>",
+        "DOCUVERSE_API_URL": "https://xpbgkuukxp.ap-south-1.awsapprunner.com/api"
+      }
+    }
+  }
+}`}
+                                                        </pre>
                                                     </div>
                                                 </div>
 
-                                                <div className="p-4 rounded-xl bg-dv-purple/10 border border-dv-purple/20">
-                                                    <h4 className="text-[13px] font-bold text-dv-purple mb-2">3. Set Environment Variables</h4>
-                                                    <p className="text-[13px] text-dv-purple/70 leading-relaxed mb-3">
-                                                        Cursor does not currently let you inject ENV variables easily through the UI for MCP. You will need to build the MCP server using a <code className="bg-black/30 px-1 py-0.5 rounded">.env</code> file directly in the <code className="bg-black/30 px-1 py-0.5 rounded">mcp-server/</code> directory.
+                                                <div className="p-4 rounded-xl bg-dv-accent/10 border border-dv-accent/20 flex gap-3 text-dv-accent/90 text-[13px]">
+                                                    <CheckCircle2 className="w-5 h-5 shrink-0" />
+                                                    <p>
+                                                        Replace <code className="font-mono">/absolute/path...</code> with the real path to the MCP build folder on your machine, and paste your JWT Session Token from the DocuVerse dashboard. Restart Cursor (or reload the window) to apply changes.
                                                     </p>
-                                                    <pre className="text-[12px] font-mono bg-black/40 text-dv-text/60 p-3 rounded-lg border border-dv-purple/10">
-                                                        DOCUVERSE_JWT_TOKEN=your_token
-                                                        DOCUVERSE_API_URL=https://logorhythms.in/api
-                                                    </pre>
                                                 </div>
                                             </div>
                                         )}
