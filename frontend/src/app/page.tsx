@@ -115,7 +115,7 @@ export default function HomePage() {
       {/* ────────────── HERO ────────────── */}
       <div ref={heroRef}>
         <motion.section
-          className="relative pt-32 pb-4 overflow-hidden"
+          className="relative pt-28 pb-16 overflow-hidden"
           style={{ opacity: heroOpacity, scale: heroScale }}
         >
           {/* Ambient glow */}
@@ -125,119 +125,124 @@ export default function HomePage() {
             <div className="absolute top-[10%] right-[15%] w-[300px] h-[300px] bg-dv-indigo/[0.04] rounded-full blur-[80px]" />
           </div>
 
-          <motion.div
-            className="relative z-10 max-w-[980px] mx-auto px-6 text-center"
-            variants={stagger}
-            initial="hidden"
-            animate="show"
-          >
-            {/* Pill badge */}
-            <motion.div variants={riseUp}>
-              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[var(--glass-6)] backdrop-blur-xl border border-dv-border text-[13px] text-dv-text/60 mb-6 shadow-[var(--inset)]">
-                <span className="w-1.5 h-1.5 rounded-full bg-dv-success animate-pulse" />
-                Powered by team BitMask
-              </span>
+          <div className="relative z-10 max-w-[1080px] mx-auto px-6 flex flex-col-reverse lg:flex-row items-center gap-10 lg:gap-12">
+            
+            {/* LEFT — Code Preview Device */}
+            <motion.div
+              className="w-full lg:w-[50%] flex-shrink-0"
+              initial={{ opacity: 0, x: -40 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.4, duration: 0.9, ease: appleEase }}
+            >
+              <div className="relative rounded-2xl overflow-hidden border border-dv-border bg-[var(--glass-4)] backdrop-blur-2xl shadow-[var(--card-shadow)]">
+                {/* Window chrome */}
+                <div className="flex items-center gap-2.5 px-5 py-3 bg-[var(--glass-3)] backdrop-blur-xl border-b border-dv-border">
+                  <div className="flex gap-[7px]">
+                    <div className="w-[11px] h-[11px] rounded-full bg-[#ff5f57]" />
+                    <div className="w-[11px] h-[11px] rounded-full bg-[#febc2e]" />
+                    <div className="w-[11px] h-[11px] rounded-full bg-[#28c840]" />
+                  </div>
+                  <div className="flex-1 flex justify-center">
+                    <div className="flex items-center gap-2 px-3 py-1 rounded-md bg-[var(--glass-4)] text-[12px] text-dv-text/30">
+                      <FileCode className="w-3 h-3" />
+                      auth_service.py
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[11px] font-medium text-dv-accent bg-dv-accent/10 px-2.5 py-1 rounded-full">
+                    <Volume2 className="w-3 h-3" />
+                    LIVE
+                  </div>
+                </div>
+
+                {/* Code content */}
+                <div className="font-mono text-[13px] leading-[1.8] p-6 bg-[var(--code-bg)] backdrop-blur-sm">
+                  <CodePreview />
+                </div>
+
+                {/* Player transport */}
+                <div className="flex items-center gap-4 px-5 py-3.5 bg-[var(--glass-3)] backdrop-blur-xl border-t border-dv-border">
+                  <button className="w-8 h-8 rounded-full bg-dv-accent flex items-center justify-center hover:brightness-110 transition-all">
+                    <Play className="w-3.5 h-3.5 text-dv-text ml-[1px]" />
+                  </button>
+                  <div className="flex-1 relative h-[3px] bg-[var(--glass-8)] rounded-full overflow-hidden">
+                    <motion.div
+                      className="absolute inset-y-0 left-0 bg-dv-accent rounded-full"
+                      initial={{ width: '0%' }}
+                      animate={{ width: '42%' }}
+                      transition={{ duration: 3, delay: 1.2, ease: appleSlow }}
+                    />
+                  </div>
+                  <span className="text-[11px] text-dv-text/25 font-mono tabular-nums tracking-wide">
+                    1:24 / 3:18
+                  </span>
+                </div>
+              </div>
+
+              {/* Reflection glow under card */}
+              <div className="mt-4 mx-auto w-[70%] h-[60px] bg-dv-accent/[0.04] rounded-full blur-[40px] pointer-events-none" />
             </motion.div>
 
-            {/* Hero title — Apple's signature large type */}
-            <motion.h1
-              variants={riseUp}
-              className="text-[clamp(2.5rem,7vw,5.5rem)] font-bold tracking-[-0.04em] leading-[0.95] mb-6"
+            {/* RIGHT — Hero Text */}
+            <motion.div
+              className="w-full lg:w-[50%] text-center lg:text-left"
+              variants={stagger}
+              initial="hidden"
+              animate="show"
             >
-              <span className="text-dv-text">Code that</span>
-              <br />
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-dv-accent via-dv-purple to-[#ff375f]">
-                speaks for itself
-              </span>
-            </motion.h1>
+              {/* Pill badge */}
+              <motion.div variants={riseUp}>
+                <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[var(--glass-6)] backdrop-blur-xl border border-dv-border text-[13px] text-dv-text/60 mb-6 shadow-[var(--inset)]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-dv-success animate-pulse" />
+                  Powered by team BitMask
+                </span>
+              </motion.div>
 
-            {/* Subtitle */}
-            <motion.p
-              variants={riseUp}
-              className="text-[clamp(1.05rem,2.2vw,1.3rem)] leading-relaxed text-dv-text/50 max-w-2xl mx-auto mb-10 font-normal tracking-[-0.01em]"
-            >
-              Connect a GitHub repository. An AI senior engineer narrates every file
-              with synced audio, interactive diagrams, and a live sandbox.
-            </motion.p>
+              {/* Hero title */}
+              <motion.h1
+                variants={riseUp}
+                className="text-[clamp(2.2rem,5vw,4.5rem)] font-bold tracking-[-0.04em] leading-[0.95] mb-6"
+              >
+                <span className="text-dv-text">Code that</span>
+                <br />
+                <span className="bg-clip-text text-transparent bg-gradient-to-r from-dv-accent via-dv-purple to-[#ff375f]">
+                  speaks for itself
+                </span>
+              </motion.h1>
 
-            {/* CTA buttons */}
-            <motion.div variants={riseUp} className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link
-                href={authTarget}
-                onClick={handleAuthClick}
-                className="group flex items-center gap-2.5 bg-[var(--glass-10)] backdrop-blur-2xl border border-dv-border text-dv-text font-semibold text-[15px] px-8 py-3.5 rounded-full hover:bg-[var(--glass-16)] hover:border-dv-border hover:shadow-[var(--card-shadow)] active:scale-[0.97] transition-all shadow-[var(--card-shadow)]"
+              {/* Subtitle */}
+              <motion.p
+                variants={riseUp}
+                className="text-[clamp(1rem,2vw,1.2rem)] leading-relaxed text-dv-text/50 max-w-lg mx-auto lg:mx-0 mb-10 font-normal tracking-[-0.01em]"
               >
-                <Play className="w-4 h-4" />
-                Start for free
-                <ArrowRight className="w-4 h-4 -ml-0.5 group-hover:translate-x-0.5 transition-transform" />
-              </Link>
-              <Link
-                href="/demo"
-                className="flex items-center gap-2 text-[15px] font-medium text-dv-text/60 hover:text-dv-text px-6 py-3.5 rounded-full bg-[var(--glass-4)] backdrop-blur-xl border border-dv-border hover:bg-[var(--glass-8)] hover:border-dv-border transition-all"
-              >
-                <Sparkles className="w-4 h-4" />
-                Explore Demo
-                <ChevronRight className="w-4 h-4" />
-              </Link>
+                Connect a GitHub repository. An AI senior engineer narrates every file
+                with synced audio, interactive diagrams, and a live sandbox.
+              </motion.p>
+
+              {/* CTA buttons */}
+              <motion.div variants={riseUp} className="flex flex-col sm:flex-row items-center lg:items-start justify-center lg:justify-start gap-4">
+                <Link
+                  href={authTarget}
+                  onClick={handleAuthClick}
+                  className="group flex items-center gap-2.5 bg-[var(--glass-10)] backdrop-blur-2xl border border-dv-border text-dv-text font-semibold text-[15px] px-8 py-3.5 rounded-full hover:bg-[var(--glass-16)] hover:border-dv-border hover:shadow-[var(--card-shadow)] active:scale-[0.97] transition-all shadow-[var(--card-shadow)]"
+                >
+                  <Play className="w-4 h-4" />
+                  Start for free
+                  <ArrowRight className="w-4 h-4 -ml-0.5 group-hover:translate-x-0.5 transition-transform" />
+                </Link>
+                <Link
+                  href="/demo"
+                  className="flex items-center gap-2 text-[15px] font-medium text-dv-text/60 hover:text-dv-text px-6 py-3.5 rounded-full bg-[var(--glass-4)] backdrop-blur-xl border border-dv-border hover:bg-[var(--glass-8)] hover:border-dv-border transition-all"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Explore Demo
+                  <ChevronRight className="w-4 h-4" />
+                </Link>
+              </motion.div>
             </motion.div>
-          </motion.div>
+
+          </div>
         </motion.section>
       </div>
-
-      {/* ────────────── HERO DEVICE PREVIEW ────────────── */}
-      <motion.section
-        className="relative z-10 max-w-[860px] mx-auto px-6 pt-16 pb-32"
-        initial={{ opacity: 0, y: 60 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5, duration: 0.9, ease: appleEase }}
-      >
-        <div className="relative rounded-2xl overflow-hidden border border-dv-border bg-[var(--glass-4)] backdrop-blur-2xl shadow-[var(--card-shadow)]">
-          {/* Window chrome */}
-          <div className="flex items-center gap-2.5 px-5 py-3 bg-[var(--glass-3)] backdrop-blur-xl border-b border-dv-border">
-            <div className="flex gap-[7px]">
-              <div className="w-[11px] h-[11px] rounded-full bg-[#ff5f57]" />
-              <div className="w-[11px] h-[11px] rounded-full bg-[#febc2e]" />
-              <div className="w-[11px] h-[11px] rounded-full bg-[#28c840]" />
-            </div>
-            <div className="flex-1 flex justify-center">
-              <div className="flex items-center gap-2 px-3 py-1 rounded-md bg-[var(--glass-4)] text-[12px] text-dv-text/30">
-                <FileCode className="w-3 h-3" />
-                auth_service.py
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5 text-[11px] font-medium text-dv-accent bg-dv-accent/10 px-2.5 py-1 rounded-full">
-              <Volume2 className="w-3 h-3" />
-              LIVE
-            </div>
-          </div>
-
-          {/* Code content */}
-          <div className="font-mono text-[13px] leading-[1.8] p-6 bg-[var(--code-bg)] backdrop-blur-sm">
-            <CodePreview />
-          </div>
-
-          {/* Player transport */}
-          <div className="flex items-center gap-4 px-5 py-3.5 bg-[var(--glass-3)] backdrop-blur-xl border-t border-dv-border">
-            <button className="w-8 h-8 rounded-full bg-dv-accent flex items-center justify-center hover:brightness-110 transition-all">
-              <Play className="w-3.5 h-3.5 text-dv-text ml-[1px]" />
-            </button>
-            <div className="flex-1 relative h-[3px] bg-[var(--glass-8)] rounded-full overflow-hidden">
-              <motion.div
-                className="absolute inset-y-0 left-0 bg-dv-accent rounded-full"
-                initial={{ width: '0%' }}
-                animate={{ width: '42%' }}
-                transition={{ duration: 3, delay: 1.2, ease: appleSlow }}
-              />
-            </div>
-            <span className="text-[11px] text-dv-text/25 font-mono tabular-nums tracking-wide">
-              1:24 / 3:18
-            </span>
-          </div>
-        </div>
-
-        {/* Reflection glow under card */}
-        <div className="absolute bottom-16 left-1/2 -translate-x-1/2 w-[70%] h-[120px] bg-dv-accent/[0.04] rounded-full blur-[60px] pointer-events-none" />
-      </motion.section>
 
       {/* ────────────── HOW IT WORKS ────────────── */}
       <section id="how-it-works" className="relative py-28">
