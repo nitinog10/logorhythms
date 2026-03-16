@@ -75,6 +75,7 @@ const config: Config = {
         'pulse-slow':   'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'shimmer':      'shimmer 2s linear infinite',
         'spin-slow':    'spin 3s linear infinite',
+        'gradient-x':   'gradient-x 3s ease infinite',
       },
       keyframes: {
         'ios-spring': {
@@ -110,6 +111,10 @@ const config: Config = {
         shimmer: {
           '0%':   { transform: 'translateX(-100%)' },
           '100%': { transform: 'translateX(100%)' },
+        },
+        'gradient-x': {
+          '0%, 100%': { backgroundPosition: '0% 50%' },
+          '50%':      { backgroundPosition: '100% 50%' },
         },
       },
       backgroundImage: {

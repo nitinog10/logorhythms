@@ -1,6 +1,6 @@
 'use client'
 
-import { motion, useScroll, useTransform } from 'framer-motion'
+import { motion, useScroll, useTransform, useInView, useMotionValueEvent } from 'framer-motion'
 import {
   Play,
   ArrowRight,
@@ -15,69 +15,111 @@ import {
   BarChart3,
   Terminal,
   Braces,
-  ChevronRight,
   Globe,
+  Github,
+  ArrowUpRight,
+  Code2,
+  Headphones,
+  Workflow,
+  BookOpen,
+  Share2,
+  Languages,
+  LucideMove,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useRef, useCallback } from 'react'
+import { useRef, useCallback, useState, useEffect } from 'react'
 import { useUserStore } from '@/lib/store'
+import GradientMesh from '@/components/landing/GradientMesh'
+import RevealText from '@/components/landing/RevealText'
+import TiltCard from '@/components/landing/TiltCard'
 
-/* ── Apple-style easing ── */
-const appleEase = [0.25, 0.1, 0.25, 1] as const
-const appleSlow = [0.42, 0, 0.58, 1] as const
+/* ═══ Easing ═══ */
+const ease = [0.23, 1, 0.32, 1] as const
 
-const stagger = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.08, delayChildren: 0.15 } },
-}
-const riseUp = {
-  hidden: { opacity: 0, y: 32 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.7, ease: appleEase } },
-}
-const scaleIn = {
-  hidden: { opacity: 0, scale: 0.94 },
-  show: { opacity: 1, scale: 1, transition: { duration: 0.8, ease: appleEase } },
+/* ═══ Counter hook ═══ */
+function useCounter(target: number, duration = 2000) {
+  const ref = useRef<HTMLSpanElement>(null)
+  const isInView = useInView(ref as any, { once: true, margin: '-100px' })
+  const [count, setCount] = useState(0)
+
+  useEffect(() => {
+    if (!isInView) return
+    let start = 0
+    const increment = target / (duration / 16)
+    const timer = setInterval(() => {
+      start += increment
+      if (start >= target) {
+        setCount(target)
+        clearInterval(timer)
+      } else {
+        setCount(Math.floor(start))
+      }
+    }, 16)
+    return () => clearInterval(timer)
+  }, [isInView, target, duration])
+
+  return { ref, count }
 }
 
+/* ═══════════════════════════════════════
+   HOME PAGE
+   ═══════════════════════════════════════ */
 export default function HomePage() {
   const { isAuthenticated } = useUserStore()
-  const authTarget = isAuthenticated ? '/dashboard' : '/auth/signin'
   const router = useRouter()
-  const heroRef = useRef<HTMLDivElement>(null)
-  const { scrollYProgress } = useScroll({
-    target: heroRef,
-    offset: ['start start', 'end start'],
-  })
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.5], [1, 0])
-  const heroScale = useTransform(scrollYProgress, [0, 0.5], [1, 0.96])
 
-  // Check auth at click time to avoid hydration timing issues
-  const handleAuthClick = useCallback((e: React.MouseEvent) => {
-    e.preventDefault()
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
-    router.push(token ? '/dashboard' : '/auth/signin')
-  }, [router])
+  const handleAuthClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault()
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+      router.push(token ? '/dashboard' : '/auth/signin')
+    },
+    [router]
+  )
+
+  const authTarget = isAuthenticated ? '/dashboard' : '/auth/signin'
+
+  /* Scroll-linked progress for process timeline */
+  const timelineRef = useRef<HTMLDivElement>(null)
+  const { scrollYProgress: timelineProgress } = useScroll({
+    target: timelineRef,
+    offset: ['start end', 'end center'],
+  })
+
+  /* Header background on scroll */
+  const [headerScrolled, setHeaderScrolled] = useState(false)
+  useEffect(() => {
+    const onScroll = () => setHeaderScrolled(window.scrollY > 60)
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   return (
-    <div className="min-h-screen bg-dv-bg overflow-x-hidden text-dv-text selection:bg-dv-accent/30">
-      {/* ────────────── NAVIGATION ────────────── */}
-      <nav className="fixed top-0 inset-x-0 z-50 bg-[var(--bar-bg)] backdrop-blur-2xl backdrop-saturate-[1.8] border-b border-dv-border">
-        <div className="flex items-center justify-between max-w-[980px] mx-auto px-6 h-12">
-          <Link href="/" className="flex items-center gap-2 group">
+    <div className="min-h-screen bg-[#050505] text-white overflow-x-hidden selection:bg-indigo-500/30">
+      {/* ─── HEADER ─── */}
+      <header
+        className={`fixed top-0 inset-x-0 z-50 transition-all duration-500 ${
+          headerScrolled
+            ? 'bg-[#050505]/80 backdrop-blur-2xl border-b border-white/[0.06]'
+            : 'bg-transparent'
+        }`}
+      >
+        <div className="max-w-[1400px] mx-auto px-6 sm:px-10 h-16 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2.5 group">
             <img src="/logo.png" alt="DocuVerse" className="w-7 h-7 rounded-lg object-cover" />
-            <span className="text-[15px] font-semibold tracking-[-0.01em] text-dv-text/90 group-hover:text-dv-text transition-colors">
+            <span className="text-[15px] font-semibold tracking-tight text-white/80 group-hover:text-white transition-colors">
               DocuVerse
             </span>
           </Link>
 
-          <div className="hidden md:flex items-center gap-8">
-            {['Features', 'How it works', 'Capabilities'].map((item) => (
+          <nav className="hidden md:flex items-center gap-8">
+            {['Process', 'Features', 'Capabilities'].map((item) => (
               <button
                 key={item}
-                className="text-[13px] text-dv-text/50 hover:text-dv-text/90 transition-colors duration-200"
+                className="text-[13px] tracking-wide uppercase text-white/30 hover:text-white transition-colors duration-300"
                 onClick={() => {
-                  const id = item.toLowerCase().replace(/\s/g, '-')
+                  const id = item.toLowerCase()
                   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
                 }}
               >
@@ -86,470 +128,562 @@ export default function HomePage() {
             ))}
             <Link
               href="/mcp-guide"
-              className="text-[13px] text-dv-text/50 hover:text-dv-text/90 transition-colors duration-200 flex items-center gap-1.5"
+              className="text-[13px] tracking-wide uppercase text-white/30 hover:text-white transition-colors duration-300 flex items-center gap-1.5"
             >
               <Terminal className="w-3.5 h-3.5" />
-              Use in IDE
+              IDE
             </Link>
-          </div>
+          </nav>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <Link
               href={authTarget}
               onClick={handleAuthClick}
-              className="text-[13px] text-dv-text/50 hover:text-dv-text/90 transition-colors hidden sm:block"
+              className="text-[13px] text-white/40 hover:text-white transition-colors hidden sm:block"
             >
               {isAuthenticated ? 'Dashboard' : 'Sign in'}
             </Link>
             <Link
               href={authTarget}
               onClick={handleAuthClick}
-              className="text-[13px] font-medium bg-[var(--glass-12)] backdrop-blur-xl border border-dv-border text-dv-text px-4 py-1.5 rounded-full hover:bg-[var(--glass-16)] hover:border-dv-border active:scale-[0.97] transition-all shadow-[var(--btn-solid-shadow)]"
+              className="text-[13px] font-semibold bg-white text-black px-5 py-2 rounded-full hover:bg-white/90 active:scale-[0.96] transition-all duration-200"
             >
               Get Started
             </Link>
           </div>
         </div>
-      </nav>
+      </header>
 
-      {/* ────────────── HERO ────────────── */}
-      <div ref={heroRef}>
-        <motion.section
-          className="relative pt-28 pb-16 overflow-hidden"
-          style={{ opacity: heroOpacity, scale: heroScale }}
-        >
-          {/* Ambient glow */}
-          <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute top-[-30%] left-1/2 -translate-x-1/2 w-[1100px] h-[600px] bg-gradient-to-b from-dv-accent/[0.08] to-transparent rounded-full blur-[120px]" />
-            <div className="absolute top-[-10%] left-[20%] w-[400px] h-[400px] bg-dv-purple/[0.04] rounded-full blur-[100px]" />
-            <div className="absolute top-[10%] right-[15%] w-[300px] h-[300px] bg-dv-indigo/[0.04] rounded-full blur-[80px]" />
-          </div>
+      {/* ─── HERO ─── */}
+      <section className="relative min-h-screen flex flex-col justify-center pt-16">
+        <GradientMesh />
 
-          <div className="relative z-10 max-w-[1080px] mx-auto px-6 flex flex-col-reverse lg:flex-row items-center gap-10 lg:gap-12">
-            
-            {/* LEFT — Code Preview Device */}
+        <div className="relative z-10 max-w-[1400px] mx-auto px-6 sm:px-10 w-full">
+          <div className="grid lg:grid-cols-2 gap-16 lg:gap-8 items-center">
+            {/* Left — Text */}
+            <div className="max-w-2xl">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, ease, delay: 0.1 }}
+              >
+                <span className="inline-flex items-center gap-2 text-[12px] tracking-[0.2em] uppercase text-indigo-400/80 mb-8 font-medium">
+                  <span className="w-8 h-[1px] bg-indigo-500/50" />
+                  AI-Powered Code Walkthroughs
+                </span>
+              </motion.div>
+
+              <RevealText
+                as="h1"
+                className="text-[clamp(2.8rem,7vw,5.5rem)] font-bold tracking-[-0.04em] leading-[0.92] mb-8"
+                delay={0.2}
+              >
+                Understand any codebase in minutes
+              </RevealText>
+
+              <motion.p
+                className="text-lg sm:text-xl text-white/35 leading-relaxed max-w-lg mb-12"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, ease, delay: 0.8 }}
+              >
+                Connect a GitHub repo. An AI senior engineer narrates every file
+                with synced audio, interactive diagrams, and a live sandbox.
+              </motion.p>
+
+              <motion.div
+                className="flex flex-wrap gap-4"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, ease, delay: 1 }}
+              >
+                <Link
+                  href={authTarget}
+                  onClick={handleAuthClick}
+                  className="group flex items-center gap-2.5 bg-white text-black font-semibold text-[15px] px-7 py-3.5 rounded-full hover:shadow-[0_0_30px_rgba(99,102,241,0.4)] active:scale-[0.96] transition-all duration-500"
+                >
+                  Start for free
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
+                </Link>
+                <Link
+                  href="/demo"
+                  className="group flex items-center gap-2 text-[15px] font-medium text-white/50 hover:text-white px-6 py-3.5 rounded-full border border-white/[0.1] hover:border-white/[0.25] hover:bg-white/[0.04] transition-all duration-300"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Explore Demo
+                </Link>
+              </motion.div>
+            </div>
+
+            {/* Right — Code Mockup */}
             <motion.div
-              className="w-full lg:w-[50%] flex-shrink-0"
-              initial={{ opacity: 0, x: -40 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.4, duration: 0.9, ease: appleEase }}
+              className="relative lg:justify-self-end w-full max-w-[560px]"
+              initial={{ opacity: 0, y: 40, rotateY: -5 }}
+              animate={{ opacity: 1, y: 0, rotateY: 0 }}
+              transition={{ duration: 1.2, ease, delay: 0.5 }}
+              style={{ perspective: 1200 }}
             >
-              <div className="relative rounded-2xl overflow-hidden border border-dv-border bg-[var(--glass-4)] backdrop-blur-2xl shadow-[var(--card-shadow)]">
-                {/* Window chrome */}
-                <div className="flex items-center gap-2.5 px-5 py-3 bg-[var(--glass-3)] backdrop-blur-xl border-b border-dv-border">
-                  <div className="flex gap-[7px]">
-                    <div className="w-[11px] h-[11px] rounded-full bg-[#ff5f57]" />
-                    <div className="w-[11px] h-[11px] rounded-full bg-[#febc2e]" />
-                    <div className="w-[11px] h-[11px] rounded-full bg-[#28c840]" />
+              <div className="relative rounded-2xl overflow-hidden bg-[#0a0a0f] border border-white/[0.08] shadow-[0_20px_60px_rgba(0,0,0,0.6)]">
+                {/* Chrome */}
+                <div className="flex items-center gap-2.5 px-5 py-3.5 bg-white/[0.02] border-b border-white/[0.06]">
+                  <div className="flex gap-2">
+                    <div className="w-3 h-3 rounded-full bg-[#ff5f57]/70" />
+                    <div className="w-3 h-3 rounded-full bg-[#febc2e]/70" />
+                    <div className="w-3 h-3 rounded-full bg-[#28c840]/70" />
                   </div>
                   <div className="flex-1 flex justify-center">
-                    <div className="flex items-center gap-2 px-3 py-1 rounded-md bg-[var(--glass-4)] text-[12px] text-dv-text/30">
+                    <span className="text-[11px] text-white/20 font-mono flex items-center gap-1.5">
                       <FileCode className="w-3 h-3" />
                       auth_service.py
-                    </div>
+                    </span>
                   </div>
-                  <div className="flex items-center gap-1.5 text-[11px] font-medium text-dv-accent bg-dv-accent/10 px-2.5 py-1 rounded-full">
-                    <Volume2 className="w-3 h-3" />
-                    LIVE
+                  <div className="flex items-center gap-1.5 text-[10px] font-mono font-bold text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded">
+                    <Headphones className="w-3 h-3" />
+                    NARRATING
                   </div>
                 </div>
 
-                {/* Code content */}
-                <div className="font-mono text-[13px] leading-[1.8] p-6 bg-[var(--code-bg)] backdrop-blur-sm">
-                  <CodePreview />
+                {/* Code */}
+                <div className="font-mono text-[12.5px] leading-[2] p-5 sm:p-6">
+                  <CodeBlock />
                 </div>
 
-                {/* Player transport */}
-                <div className="flex items-center gap-4 px-5 py-3.5 bg-[var(--glass-3)] backdrop-blur-xl border-t border-dv-border">
-                  <button className="w-8 h-8 rounded-full bg-dv-accent flex items-center justify-center hover:brightness-110 transition-all">
-                    <Play className="w-3.5 h-3.5 text-dv-text ml-[1px]" />
+                {/* Audio bar */}
+                <div className="flex items-center gap-3 px-5 py-3 bg-white/[0.02] border-t border-white/[0.06]">
+                  <button className="w-7 h-7 rounded-full bg-indigo-500 flex items-center justify-center shrink-0">
+                    <Play className="w-3 h-3 text-white ml-[1px]" fill="white" />
                   </button>
-                  <div className="flex-1 relative h-[3px] bg-[var(--glass-8)] rounded-full overflow-hidden">
-                    <motion.div
-                      className="absolute inset-y-0 left-0 bg-dv-accent rounded-full"
-                      initial={{ width: '0%' }}
-                      animate={{ width: '42%' }}
-                      transition={{ duration: 3, delay: 1.2, ease: appleSlow }}
-                    />
+                  {/* Waveform */}
+                  <div className="flex-1 flex items-center gap-[2px] h-5">
+                    {Array.from({ length: 50 }).map((_, i) => (
+                      <motion.div
+                        key={i}
+                        className="flex-1 rounded-full bg-indigo-500/50"
+                        style={{ minWidth: 2 }}
+                        initial={{ height: '30%' }}
+                        animate={{ height: `${20 + Math.random() * 80}%` }}
+                        transition={{
+                          duration: 0.5 + Math.random() * 0.5,
+                          repeat: Infinity,
+                          repeatType: 'reverse',
+                          delay: i * 0.02,
+                        }}
+                      />
+                    ))}
                   </div>
-                  <span className="text-[11px] text-dv-text/25 font-mono tabular-nums tracking-wide">
-                    1:24 / 3:18
+                  <span className="text-[10px] text-white/20 font-mono tabular-nums shrink-0">
+                    1:24
                   </span>
                 </div>
               </div>
 
-              {/* Reflection glow under card */}
-              <div className="mt-4 mx-auto w-[70%] h-[60px] bg-dv-accent/[0.04] rounded-full blur-[40px] pointer-events-none" />
+              {/* Card shadow glow */}
+              <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-[80%] h-[60px] bg-indigo-500/[0.06] rounded-full blur-[40px]" />
             </motion.div>
-
-            {/* RIGHT — Hero Text */}
-            <motion.div
-              className="w-full lg:w-[50%] text-center lg:text-left"
-              variants={stagger}
-              initial="hidden"
-              animate="show"
-            >
-              {/* Pill badge */}
-              <motion.div variants={riseUp}>
-                <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[var(--glass-6)] backdrop-blur-xl border border-dv-border text-[13px] text-dv-text/60 mb-6 shadow-[var(--inset)]">
-                  <span className="w-1.5 h-1.5 rounded-full bg-dv-success animate-pulse" />
-                  Powered by team BitMask
-                </span>
-              </motion.div>
-
-              {/* Hero title */}
-              <motion.h1
-                variants={riseUp}
-                className="text-[clamp(2.2rem,5vw,4.5rem)] font-bold tracking-[-0.04em] leading-[0.95] mb-6"
-              >
-                <span className="text-dv-text">Code that</span>
-                <br />
-                <span className="bg-clip-text text-transparent bg-gradient-to-r from-dv-accent via-dv-purple to-[#ff375f]">
-                  speaks for itself
-                </span>
-              </motion.h1>
-
-              {/* Subtitle */}
-              <motion.p
-                variants={riseUp}
-                className="text-[clamp(1rem,2vw,1.2rem)] leading-relaxed text-dv-text/50 max-w-lg mx-auto lg:mx-0 mb-10 font-normal tracking-[-0.01em]"
-              >
-                Connect a GitHub repository. An AI senior engineer narrates every file
-                with synced audio, interactive diagrams, and a live sandbox.
-              </motion.p>
-
-              {/* CTA buttons */}
-              <motion.div variants={riseUp} className="flex flex-col sm:flex-row items-center lg:items-start justify-center lg:justify-start gap-4">
-                <Link
-                  href={authTarget}
-                  onClick={handleAuthClick}
-                  className="group flex items-center gap-2.5 bg-[var(--glass-10)] backdrop-blur-2xl border border-dv-border text-dv-text font-semibold text-[15px] px-8 py-3.5 rounded-full hover:bg-[var(--glass-16)] hover:border-dv-border hover:shadow-[var(--card-shadow)] active:scale-[0.97] transition-all shadow-[var(--card-shadow)]"
-                >
-                  <Play className="w-4 h-4" />
-                  Start for free
-                  <ArrowRight className="w-4 h-4 -ml-0.5 group-hover:translate-x-0.5 transition-transform" />
-                </Link>
-                <Link
-                  href="/demo"
-                  className="flex items-center gap-2 text-[15px] font-medium text-dv-text/60 hover:text-dv-text px-6 py-3.5 rounded-full bg-[var(--glass-4)] backdrop-blur-xl border border-dv-border hover:bg-[var(--glass-8)] hover:border-dv-border transition-all"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  Explore Demo
-                  <ChevronRight className="w-4 h-4" />
-                </Link>
-              </motion.div>
-            </motion.div>
-
           </div>
-        </motion.section>
+        </div>
+
+        {/* Scroll cue */}
+        <motion.div
+          className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 2.5, duration: 1 }}
+        >
+          <motion.div
+            className="w-5 h-8 rounded-full border border-white/15 flex items-start justify-center p-1"
+          >
+            <motion.div
+              className="w-1 h-1.5 rounded-full bg-white/40"
+              animate={{ y: [0, 10, 0] }}
+              transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+            />
+          </motion.div>
+        </motion.div>
+      </section>
+
+      {/* ─── MARQUEE ─── */}
+      <div className="relative py-10 border-y border-white/[0.04] overflow-hidden bg-[#050505]">
+        <div className="marquee-track flex gap-12 items-center whitespace-nowrap">
+          {[...Array(2)].map((_, outer) => (
+            <div key={outer} className="flex gap-12 items-center shrink-0 marquee-content">
+              {[
+                'Python', 'TypeScript', 'React', 'Go', 'Rust', 'Java',
+                'Next.js', 'Node.js', 'Ruby', 'Kotlin', 'Swift', 'C++',
+              ].map((lang) => (
+                <span key={`${outer}-${lang}`} className="flex items-center gap-3">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500/60" />
+                  <span className="text-[14px] font-mono tracking-wide text-white/20 uppercase">
+                    {lang}
+                  </span>
+                </span>
+              ))}
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* ────────────── HOW IT WORKS ────────────── */}
-      <section id="how-it-works" className="relative py-28">
-        <div className="absolute inset-0 pointer-events-none" style={{ background: 'var(--section-band)' }} />
-        <div className="relative z-10 max-w-[980px] mx-auto px-6">
-          <motion.div
-            className="text-center mb-20"
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-100px' }}
-            transition={{ duration: 0.7, ease: appleEase }}
-          >
-            <p className="text-[13px] font-semibold text-dv-accent tracking-wide uppercase mb-3">
-              How it works
-            </p>
-            <h2 className="text-[clamp(1.75rem,4vw,3rem)] font-bold tracking-[-0.03em] leading-tight">
-              Three steps to understanding
-            </h2>
-          </motion.div>
+      {/* ─── PROCESS (How It Works) ─── */}
+      <section id="process" className="relative py-32 sm:py-40" ref={timelineRef}>
+        <div className="max-w-[1100px] mx-auto px-6 sm:px-10">
+          <div className="mb-20 sm:mb-28">
+            <motion.span
+              className="inline-flex items-center gap-2 text-[12px] tracking-[0.2em] uppercase text-indigo-400/70 mb-5 font-medium"
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+            >
+              <span className="w-8 h-[1px] bg-indigo-500/50" />
+              Process
+            </motion.span>
+            <RevealText
+              as="h2"
+              className="text-[clamp(2rem,5vw,3.8rem)] font-bold tracking-[-0.03em] leading-[1.05]"
+            >
+              Three steps from repo to understanding
+            </RevealText>
+          </div>
 
-          <motion.div
-            className="grid md:grid-cols-3 gap-5"
-            variants={stagger}
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, margin: '-80px' }}
-          >
-            {[
-              {
-                icon: <GitBranch className="w-6 h-6" />,
-                step: '01',
-                title: 'Connect',
-                desc: 'Link your GitHub repo. We parse every file with tree-sitter AST analysis in seconds.',
-                color: '#0a84ff',
-              },
-              {
-                icon: <Sparkles className="w-6 h-6" />,
-                step: '02',
-                title: 'Generate',
-                desc: 'GPT-4o writes narration scripts. AI voice syncs perfectly to each code section.',
-                color: '#bf5af2',
-              },
-              {
-                icon: <Play className="w-6 h-6" />,
-                step: '03',
-                title: 'Play',
-                desc: 'Auto-scrolling code, voice narration, Mermaid diagrams, and a live sandbox.',
-                color: '#30d158',
-              },
-            ].map((f) => (
+          <div className="relative">
+            {/* Animated timeline line — sits behind icon boxes via negative z */}
+            <div className="absolute left-[28px] sm:left-[36px] top-0 bottom-0 w-[2px] bg-white/[0.04] hidden md:block" style={{ zIndex: 0 }}>
               <motion.div
-                key={f.step}
-                variants={riseUp}
-                className="group relative p-8 rounded-2xl bg-[var(--glass-3)] backdrop-blur-2xl border border-dv-border hover:border-dv-border hover:bg-[var(--glass-6)] transition-all duration-500 shadow-[var(--inset)]"
-              >
-                {/* Hover glow */}
-                <div
-                  className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"
-                  style={{
-                    background: `radial-gradient(300px circle at 50% 0%, ${f.color}08, transparent 70%)`,
-                  }}
-                />
-                <div className="relative">
-                  <div className="flex items-center justify-between mb-8">
+                className="absolute top-0 left-0 w-full bg-gradient-to-b from-indigo-500 to-purple-500 origin-top"
+                style={{ scaleY: timelineProgress, height: '100%' }}
+              />
+            </div>
+
+            <div className="space-y-20 sm:space-y-28">
+              {[
+                {
+                  num: '01',
+                  icon: <GitBranch className="w-5 h-5" />,
+                  title: 'Drop in any GitHub repo',
+                  desc: 'Just Connect your Repository. DocuVerse clones the repo, analyse every file, and maps out every function, class, and dependency in seconds. Zero config, zero setup.',
+                  accent: '#6366f1',
+                },
+                {
+                  num: '02',
+                  icon: <Sparkles className="w-5 h-5" />,
+                  title: 'AI builds your walkthrough',
+                  desc: 'Our Ai reads your code like a senior engineer and writes a clear, file by file narration. Text-to-speech generates perfectly synced audio. Architecture diagrams and flow charts appear automatically.',
+                  accent: '#a855f7',
+                },
+                {
+                  num: '03',
+                  icon: <Play className="w-5 h-5" />,
+                  title: 'Explore, listen, and experiment',
+                  desc: 'Hit play and watch the code scroll in sync with AI narration. Tap into interactive architecture diagrams, trace dependencies visually, and spin up a live sandbox to test any snippet all without leaving the page.',
+                  accent: '#22d3ee',
+                },
+              ].map((step, i) => (
+                <motion.div
+                  key={step.num}
+                  className="flex gap-6 sm:gap-10 items-start"
+                  initial={{ opacity: 0, x: -30 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true, margin: '-80px' }}
+                  transition={{ duration: 0.8, ease, delay: i * 0.1 }}
+                >
+                  {/* Number + Icon — z-10 so it sits above the timeline line */}
+                  <div className="relative shrink-0 flex flex-col items-center gap-3" style={{ zIndex: 10 }}>
                     <div
-                      className="w-12 h-12 rounded-2xl flex items-center justify-center"
-                      style={{ backgroundColor: `${f.color}12`, color: f.color }}
+                      className="w-14 h-14 sm:w-[72px] sm:h-[72px] rounded-2xl flex items-center justify-center border border-white/[0.06] bg-[#050505]"
+                      style={{ color: step.accent }}
                     >
-                      {f.icon}
+                      {step.icon}
                     </div>
-                    <span className="text-[13px] font-mono text-dv-text/15">{f.step}</span>
                   </div>
-                  <h3 className="text-[22px] font-bold tracking-[-0.02em] mb-2">{f.title}</h3>
-                  <p className="text-[15px] text-dv-text/40 leading-relaxed">{f.desc}</p>
-                </div>
-              </motion.div>
-            ))}
-          </motion.div>
+
+                  {/* Content */}
+                  <div className="pt-1">
+                    <span
+                      className="text-[12px] font-mono tracking-wider mb-3 block"
+                      style={{ color: step.accent, opacity: 0.7 }}
+                    >
+                      STEP {step.num}
+                    </span>
+                    <h3 className="text-[clamp(1.3rem,3vw,2rem)] font-bold tracking-[-0.02em] mb-3 text-white/90">
+                      {step.title}
+                    </h3>
+                    <p className="text-[15px] sm:text-base text-white/30 leading-relaxed max-w-lg">
+                      {step.desc}
+                    </p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* ────────────── FEATURES BENTO GRID ────────────── */}
-      <section id="features" className="relative py-28">
-        <div className="max-w-[980px] mx-auto px-6">
-          <motion.div
-            className="text-center mb-20"
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-100px' }}
-            transition={{ duration: 0.7, ease: appleEase }}
-          >
-            <p className="text-[13px] font-semibold text-dv-purple tracking-wide uppercase mb-3">
+      {/* ─── FEATURES ─── */}
+      <section id="features" className="relative py-32 sm:py-40">
+        <div className="max-w-[1400px] mx-auto px-6 sm:px-10">
+          <div className="mb-14 sm:mb-20">
+            <motion.span
+              className="inline-flex items-center gap-2 text-[12px] tracking-[0.2em] uppercase text-purple-400/70 mb-5 font-medium"
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+            >
+              <span className="w-8 h-[1px] bg-purple-500/50" />
               Features
-            </p>
-            <h2 className="text-[clamp(1.75rem,4vw,3rem)] font-bold tracking-[-0.03em] leading-tight">
-              Everything you need, nothing you don&apos;t
-            </h2>
-          </motion.div>
-
-          {/* Bento Grid */}
-          <motion.div
-            className="grid grid-cols-2 md:grid-cols-4 gap-4"
-            variants={stagger}
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, margin: '-80px' }}
-          >
-            {/* Large — Voice Narration */}
-            <motion.div
-              variants={scaleIn}
-              className="col-span-2 row-span-2 group relative p-8 rounded-3xl bg-gradient-to-br from-[var(--glass-6)] to-[var(--glass-2)] backdrop-blur-2xl border border-dv-border hover:border-dv-border hover:bg-gradient-to-br hover:from-[var(--glass-8)] hover:to-[var(--glass-3)] transition-all duration-500 overflow-hidden shadow-[var(--inset)]"
+            </motion.span>
+            <RevealText
+              as="h2"
+              className="text-[clamp(2rem,5vw,3.8rem)] font-bold tracking-[-0.03em] leading-[1.05] max-w-xl"
             >
-              <div className="absolute top-0 right-0 w-[200px] h-[200px] bg-dv-accent/[0.06] rounded-full blur-[80px] pointer-events-none" />
-              <div className="relative">
-                <div className="w-14 h-14 rounded-2xl bg-dv-accent/10 flex items-center justify-center mb-6 text-dv-accent">
-                  <Mic className="w-7 h-7" />
-                </div>
-                <h3 className="text-[26px] font-bold tracking-[-0.02em] mb-3">AI Voice Narration</h3>
-                <p className="text-[15px] text-dv-text/40 leading-relaxed max-w-sm">
-                  An AI senior engineer narrates your code with perfectly synced audio playback and line-by-line highlighting.
-                </p>
-                {/* Mini waveform */}
-                <div className="flex items-end gap-[3px] mt-8 h-10">
-                  {Array.from({ length: 24 }).map((_, i) => (
-                    <motion.div
-                      key={i}
-                      className="w-[3px] rounded-full bg-dv-accent/40"
-                      initial={{ height: '20%' }}
-                      animate={{ height: `${20 + Math.random() * 80}%` }}
-                      transition={{
-                        duration: 0.6 + Math.random() * 0.8,
-                        repeat: Infinity,
-                        repeatType: 'reverse',
-                        delay: i * 0.04,
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
-            </motion.div>
+              Powerful features, built for deep understanding
+            </RevealText>
+          </div>
 
-            {/* Small — Diagrams */}
-            <motion.div
-              variants={scaleIn}
-              className="col-span-1 group relative p-6 rounded-3xl bg-[var(--glass-3)] backdrop-blur-2xl border border-dv-border hover:border-dv-border hover:bg-[var(--glass-6)] transition-all duration-500 shadow-[var(--inset)]"
-            >
-              <div className="w-10 h-10 rounded-xl bg-dv-purple/10 backdrop-blur-sm flex items-center justify-center mb-4 text-dv-purple">
-                <Layers className="w-5 h-5" />
-              </div>
-              <h3 className="text-[17px] font-bold tracking-[-0.01em] mb-1">Diagrams</h3>
-              <p className="text-[13px] text-dv-text/35 leading-relaxed">
-                Auto-generated Mermaid flow & architecture diagrams
-              </p>
-            </motion.div>
+          {/* Horizontal scroll carousel — pt-4 pb-8 gives room so tilt scale isn't clipped */}
+          <div className="relative -mx-6 sm:-mx-10 px-6 sm:px-10">
+            <div className="flex gap-5 overflow-x-auto pt-4 pb-8 snap-x snap-mandatory scrollbar-hide items-stretch">
+              {[
+                {
+                  icon: <Mic className="w-7 h-7" />,
+                  title: 'AI Voice Narration',
+                  desc: 'An AI senior engineer narrates your code with perfectly synced audio. Line-by-line highlighting follows along as you listen.',
+                  accent: '#6366f1',
+                  tag: 'Core',
+                },
+                {
+                  icon: <Layers className="w-7 h-7" />,
+                  title: 'Architecture Diagrams',
+                  desc: 'Auto-generated Mermaid flow charts and architecture diagrams for every file and module relationship.',
+                  accent: '#a855f7',
+                  tag: 'Visual',
+                },
+                {
+                  icon: <Terminal className="w-7 h-7" />,
+                  title: 'Live Sandbox',
+                  desc: 'Run and test code snippets instantly, right inside the walkthrough. No setup needed.',
+                  accent: '#f59e0b',
+                  tag: 'Interactive',
+                },
+                {
+                  icon: <Braces className="w-7 h-7" />,
+                  title: 'Tree-sitter AST',
+                  desc: 'Accurate function, class, and scope extraction across Python, JS, TS, Java, Go, and Rust using tree-sitter parsing.',
+                  accent: '#22d3ee',
+                  tag: 'Engine',
+                },
+                {
+                  icon: <Shield className="w-7 h-7" />,
+                  title: 'Private Repos',
+                  desc: 'Securely connect private GitHub repositories. Your code never leaves your session.',
+                  accent: '#10b981',
+                  tag: 'Security',
+                },
+                {
+                  icon: <BarChart3 className="w-7 h-7" />,
+                  title: 'Impact Analysis',
+                  desc: 'Understand which functions depend on what. See the blast radius of any change before you make it.',
+                  accent: '#f97316',
+                  tag: 'Analysis',
+                },
+                
+              ].map((feat, i) => (
+                <motion.div
+                  key={feat.title}
+                  className="snap-start shrink-0 flex"
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: '-40px' }}
+                  transition={{ duration: 0.7, ease, delay: i * 0.08 }}
+                >
+                  <TiltCard className="rounded-2xl w-[320px] sm:w-[360px]">
+                    <div className="relative rounded-2xl bg-[#0a0a0f] border border-white/[0.06] p-7 sm:p-8 h-full flex flex-col" style={{ minHeight: '280px' }}>
+                      {/* Tag */}
+                      <span
+                        className="text-[10px] font-mono font-bold tracking-wider uppercase self-start px-2.5 py-1 rounded mb-6"
+                        style={{
+                          color: feat.accent,
+                          backgroundColor: `${feat.accent}12`,
+                        }}
+                      >
+                        {feat.tag}
+                      </span>
 
-            {/* Small — Sandbox */}
-            <motion.div
-              variants={scaleIn}
-              className="col-span-1 group relative p-6 rounded-3xl bg-[var(--glass-3)] backdrop-blur-2xl border border-dv-border hover:border-dv-border hover:bg-[var(--glass-6)] transition-all duration-500 shadow-[var(--inset)]"
-            >
-              <div className="w-10 h-10 rounded-xl bg-[#ffd60a]/10 backdrop-blur-sm flex items-center justify-center mb-4 text-[#ffd60a]">
-                <Terminal className="w-5 h-5" />
-              </div>
-              <h3 className="text-[17px] font-bold tracking-[-0.01em] mb-1">Live Sandbox</h3>
-              <p className="text-[13px] text-dv-text/35 leading-relaxed">
-                Run and test code snippets instantly, right inside the walkthrough
-              </p>
-            </motion.div>
+                      <div
+                        className="w-12 h-12 rounded-xl flex items-center justify-center mb-5"
+                        style={{
+                          color: feat.accent,
+                          backgroundColor: `${feat.accent}0d`,
+                          border: `1px solid ${feat.accent}18`,
+                        }}
+                      >
+                        {feat.icon}
+                      </div>
 
-            {/* Medium — AST Parsing */}
-            <motion.div
-              variants={scaleIn}
-              className="col-span-2 group relative p-6 rounded-3xl bg-[var(--glass-3)] backdrop-blur-2xl border border-dv-border hover:border-dv-border hover:bg-[var(--glass-6)] transition-all duration-500 shadow-[var(--inset)]"
-            >
-              <div className="flex items-start gap-5">
-                <div className="w-10 h-10 rounded-xl bg-dv-success/10 flex items-center justify-center text-dv-success shrink-0">
-                  <Braces className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-[17px] font-bold tracking-[-0.01em] mb-1">Tree-sitter AST</h3>
-                  <p className="text-[13px] text-dv-text/35 leading-relaxed">
-                    Accurate function, class, and scope extraction across Python, JS, TS, Java, Go, and Rust
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
+                      <h3 className="text-xl font-bold tracking-tight mb-3 text-white/90">
+                        {feat.title}
+                      </h3>
+                      <p className="text-[14px] text-white/30 leading-relaxed">
+                        {feat.desc}
+                      </p>
+                    </div>
+                  </TiltCard>
+                </motion.div>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* ────────────── CAPABILITIES ────────────── */}
-      <section id="capabilities" className="relative py-20">
-        <div className="max-w-[980px] mx-auto px-6">
-          <motion.div
-            className="flex items-center gap-8 justify-center flex-wrap"
-            variants={stagger}
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, margin: '-60px' }}
-          >
+      {/* ─── CAPABILITIES (STATS) ─── */}
+      <section id="capabilities" className="relative py-24 sm:py-32 border-y border-white/[0.04]">
+        <div className="max-w-[1200px] mx-auto px-6 sm:px-10">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-4">
             {[
-              { icon: <Volume2 className="w-4 h-4" />, label: 'Voice Narration', color: '#0a84ff' },
-              { icon: <Layers className="w-4 h-4" />, label: 'Mermaid Diagrams', color: '#bf5af2' },
-              { icon: <Zap className="w-4 h-4" />, label: 'Live Sandbox', color: '#ffd60a' },
-              { icon: <Shield className="w-4 h-4" />, label: 'Private Repos', color: '#30d158' },
-              { icon: <BarChart3 className="w-4 h-4" />, label: 'Impact Analysis', color: '#ff9f0a' },
-              { icon: <Globe className="w-4 h-4" />, label: 'Multi-language', color: '#64d2ff' },
-            ].map((c) => (
-              <motion.div
-                key={c.label}
-                variants={riseUp}
-                className="flex items-center gap-2.5 px-4 py-2 rounded-full border border-dv-border bg-[var(--glass-4)] backdrop-blur-xl hover:bg-[var(--glass-8)] hover:border-dv-border transition-all shadow-[var(--inset)]"
-              >
-                <span style={{ color: c.color }}>{c.icon}</span>
-                <span className="text-[13px] font-medium text-dv-text/50">{c.label}</span>
-              </motion.div>
-            ))}
-          </motion.div>
+              { num: 5000, suffix: '+', label: 'Files analyzed', icon: <Code2 className="w-5 h-5" /> },
+              { num: 120, suffix: '+', label: 'Repos connected', icon: <Github className="w-5 h-5" /> },
+              { num: 12, suffix: '', label: 'Languages', icon: <Globe className="w-5 h-5" /> },
+              { num: 60, suffix: 's', label: 'Avg. walkthrough', icon: <Zap className="w-5 h-5" /> },
+            ].map((stat) => {
+              const { ref, count } = useCounter(stat.num)
+              return (
+                <motion.div
+                  key={stat.label}
+                  className="text-center lg:text-left"
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: '-60px' }}
+                  transition={{ duration: 0.7, ease }}
+                >
+                  <div className="flex items-center justify-center lg:justify-start gap-2 mb-3 text-indigo-400/60">
+                    {stat.icon}
+                  </div>
+                  <span
+                    ref={ref}
+                    className="text-[clamp(2rem,5vw,3.5rem)] font-bold tracking-[-0.03em] bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60"
+                  >
+                    {count.toLocaleString()}
+                    {stat.suffix}
+                  </span>
+                  <p className="text-[13px] text-white/25 mt-1 tracking-wide uppercase">
+                    {stat.label}
+                  </p>
+                </motion.div>
+              )
+            })}
+          </div>
         </div>
       </section>
 
-      {/* ────────────── CTA ────────────── */}
-      <section className="relative py-32">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-t from-dv-accent/[0.05] to-transparent rounded-full blur-[100px]" />
-        </div>
+      {/* ─── CTA ─── */}
+      <section className="relative py-40 sm:py-52 overflow-hidden">
+        <GradientMesh className="opacity-50" />
+
         <motion.div
-          className="relative z-10 max-w-lg mx-auto text-center px-6"
-          initial={{ opacity: 0, y: 24 }}
+          className="relative z-10 max-w-2xl mx-auto text-center px-6"
+          initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.7, ease: appleEase }}
+          transition={{ duration: 0.8, ease }}
         >
-          <h2 className="text-[clamp(1.75rem,4vw,3rem)] font-bold tracking-[-0.03em] leading-tight mb-4">
-            Ready to hear
-            <br />
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-dv-accent to-dv-purple">
-              your code?
-            </span>
-          </h2>
-          <p className="text-[15px] text-dv-text/40 mb-10 leading-relaxed">
-            Connect a repo. Get your first walkthrough in under 60 seconds.
+          <RevealText
+            as="h2"
+            className="text-[clamp(2.2rem,6vw,4.5rem)] font-bold tracking-[-0.04em] leading-[0.95] mb-6"
+          >
+            Start building understanding
+          </RevealText>
+          <p className="text-base sm:text-lg text-white/30 mb-12 leading-relaxed max-w-md mx-auto">
+            Connect a repo. Get your first walkthrough in under 60 seconds. No credit card required.
           </p>
           <Link
             href="/auth/signin"
-            className="group inline-flex items-center gap-2 bg-[var(--glass-10)] backdrop-blur-2xl border border-dv-border text-dv-text font-semibold text-[15px] px-8 py-3.5 rounded-full hover:bg-[var(--glass-16)] hover:border-dv-border hover:shadow-[var(--card-shadow)] active:scale-[0.97] transition-all shadow-[var(--card-shadow)]"
+            className="group inline-flex items-center gap-2.5 bg-white text-black font-semibold text-[15px] px-8 py-4 rounded-full hover:shadow-[0_0_40px_rgba(99,102,241,0.4)] active:scale-[0.96] transition-all duration-500"
           >
             Get Started Free
-            <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+            <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform duration-300" />
           </Link>
         </motion.div>
       </section>
 
-      {/* ────────────── FOOTER ────────────── */}
-      <footer className="border-t border-dv-border-subtle py-6">
-        <div className="max-w-[980px] mx-auto px-6 flex items-center justify-between">
-          <span className="text-[12px] text-dv-text/20">© 2025 DocuVerse</span>
-          <span className="flex items-center gap-1.5 text-[12px] text-dv-text/20">
-            Built with <Sparkles className="w-3 h-3 text-dv-accent/50" /> DocuSense AI
-          </span>
+      {/* ─── FOOTER ─── */}
+      <footer className="border-t border-white/[0.04] py-12 sm:py-16">
+        <div className="max-w-[1400px] mx-auto px-6 sm:px-10">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-8">
+            <div>
+              <Link href="/" className="flex items-center gap-2 mb-3">
+                <img src="/logo.png" alt="DocuVerse" className="w-6 h-6 rounded-md object-cover" />
+                <span className="text-[14px] font-semibold text-white/60">DocuVerse</span>
+              </Link>
+              <p className="text-[13px] text-white/20 max-w-xs">
+                Transform complex codebases into interactive,    audio & visual walkthroughs.
+              </p>
+            </div>
+
+            <div className="flex gap-10">
+              <div className="space-y-3">
+                <span className="text-[11px] tracking-[0.15em] uppercase text-white/20 font-medium">Product</span>
+                <div className="space-y-2">
+                  <Link href="/demo" className="block text-[13px] text-white/30 hover:text-white/60 transition-colors">Demo</Link>
+                  <Link href="/mcp-guide" className="block text-[13px] text-white/30 hover:text-white/60 transition-colors">IDE Plugin</Link>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <span className="text-[11px] tracking-[0.15em] uppercase text-white/20 font-medium">Company</span>
+                <div className="space-y-2">
+                  <Link href="/auth/signin" className="block text-[13px] text-white/30 hover:text-white/60 transition-colors">Sign in</Link>
+                  <span className="block text-[13px] text-white/30">Team BitMask</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-12 pt-6 border-t border-white/[0.04] flex items-center justify-between">
+            <span className="text-[12px] text-white/15">© 2026 DocuVerse</span>
+            <span className="flex items-center gap-1.5 text-[12px] text-white/15">
+              Built with love by Logorhythms AI
+            </span>
+          </div>
         </div>
       </footer>
     </div>
   )
 }
 
-/* ── Code Preview Component ── */
-function CodePreview() {
+/* ═══════════════════════════════════════
+   Code Block Component
+   ═══════════════════════════════════════ */
+function CodeBlock() {
   const lines = [
-    { n: 1, code: 'class AuthService:', hl: false, tokens: [{ text: 'class', type: 'kw' }, { text: ' AuthService', type: 'cls' }, { text: ':', type: 'op' }] },
-    { n: 2, code: '    """Handle JWT authentication."""', hl: false, tokens: [{ text: '    ', type: '' }, { text: '"""Handle JWT authentication."""', type: 'str' }] },
-    { n: 3, code: '', hl: false, tokens: [] },
-    { n: 4, code: '    async def verify_token(self, token):', hl: true, tokens: [{ text: '    ', type: '' }, { text: 'async', type: 'kw' }, { text: ' ', type: '' }, { text: 'def', type: 'kw' }, { text: ' ', type: '' }, { text: 'verify_token', type: 'fn' }, { text: '(self, token):', type: '' }] },
-    { n: 5, code: '        payload = jwt.decode(token)', hl: true, tokens: [{ text: '        payload = jwt.', type: '' }, { text: 'decode', type: 'fn' }, { text: '(token)', type: '' }] },
-    { n: 6, code: '        user_id = payload.get("sub")', hl: true, tokens: [{ text: '        user_id = payload.', type: '' }, { text: 'get', type: 'fn' }, { text: '(', type: '' }, { text: '"sub"', type: 'str' }, { text: ')', type: '' }] },
-    { n: 7, code: '        if not user_id:', hl: false, tokens: [{ text: '        ', type: '' }, { text: 'if', type: 'kw' }, { text: ' ', type: '' }, { text: 'not', type: 'kw' }, { text: ' user_id:', type: '' }] },
-    { n: 8, code: '            raise InvalidCredentials()', hl: false, tokens: [{ text: '            ', type: '' }, { text: 'raise', type: 'kw' }, { text: ' ', type: '' }, { text: 'InvalidCredentials', type: 'cls' }, { text: '()', type: '' }] },
-    { n: 9, code: '        return await self.repo.get(id)', hl: false, tokens: [{ text: '        ', type: '' }, { text: 'return', type: 'kw' }, { text: ' ', type: '' }, { text: 'await', type: 'kw' }, { text: ' self.repo.', type: '' }, { text: 'get', type: 'fn' }, { text: '(id)', type: '' }] },
+    { n: 1, hl: false, tokens: [{ t: 'class', c: '#c084fc' }, { t: ' AuthService', c: '#67e8f9' }, { t: ':', c: '#a5b4fc' }] },
+    { n: 2, hl: false, tokens: [{ t: '    ', c: '' }, { t: '"""Handle JWT authentication."""', c: '#4ade80' }] },
+    { n: 3, hl: false, tokens: [] },
+    { n: 4, hl: true, tokens: [{ t: '    ', c: '' }, { t: 'async', c: '#c084fc' }, { t: ' ', c: '' }, { t: 'def', c: '#c084fc' }, { t: ' ', c: '' }, { t: 'verify_token', c: '#818cf8' }, { t: '(self, token):', c: '#94a3b8' }] },
+    { n: 5, hl: true, tokens: [{ t: '        payload = jwt.', c: '#94a3b8' }, { t: 'decode', c: '#818cf8' }, { t: '(token)', c: '#94a3b8' }] },
+    { n: 6, hl: true, tokens: [{ t: '        user_id = payload.', c: '#94a3b8' }, { t: 'get', c: '#818cf8' }, { t: '(', c: '#94a3b8' }, { t: '"sub"', c: '#4ade80' }, { t: ')', c: '#94a3b8' }] },
+    { n: 7, hl: false, tokens: [{ t: '        ', c: '' }, { t: 'if', c: '#c084fc' }, { t: ' ', c: '' }, { t: 'not', c: '#c084fc' }, { t: ' user_id:', c: '#94a3b8' }] },
+    { n: 8, hl: false, tokens: [{ t: '            ', c: '' }, { t: 'raise', c: '#c084fc' }, { t: ' ', c: '' }, { t: 'InvalidCredentials', c: '#67e8f9' }, { t: '()', c: '#94a3b8' }] },
+    { n: 9, hl: false, tokens: [{ t: '        ', c: '' }, { t: 'return', c: '#c084fc' }, { t: ' ', c: '' }, { t: 'await', c: '#c084fc' }, { t: ' self.repo.', c: '#94a3b8' }, { t: 'get', c: '#818cf8' }, { t: '(id)', c: '#94a3b8' }] },
   ]
 
-  const tokenColor: Record<string, string> = {
-    kw: 'var(--code-kw)',
-    str: 'var(--code-str)',
-    fn: 'var(--code-fn)',
-    cls: 'var(--code-cls)',
-    op: 'var(--code-op)',
-    '': 'var(--code-plain)',
-  }
-
   return (
-    <div className="space-y-0.5">
+    <div className="space-y-[1px]">
       {lines.map((l, i) => (
         <motion.div
           key={l.n}
-          className={`flex items-center rounded-md px-2 -mx-2 transition-colors ${l.hl ? 'bg-dv-accent/[0.06] border-l-2 border-dv-accent' : 'border-l-2 border-transparent'
-            }`}
-          initial={{ opacity: 0, x: -6 }}
+          className={`flex items-center rounded-md px-2 -mx-2 ${
+            l.hl
+              ? 'bg-indigo-500/[0.06] border-l-2 border-indigo-500'
+              : 'border-l-2 border-transparent'
+          }`}
+          initial={{ opacity: 0, x: -8 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.8 + i * 0.06, duration: 0.4, ease: appleEase }}
+          transition={{ delay: 1 + i * 0.07, duration: 0.4, ease }}
         >
-          <span className="w-8 text-right text-[12px] text-dv-text/15 select-none pr-4 shrink-0 font-mono">
+          <span className="w-7 text-right text-[11px] text-white/10 select-none pr-3 shrink-0 font-mono">
             {l.n}
           </span>
           <span className="flex-1 whitespace-pre">
-            {l.tokens.map((t, ti) => (
-              <span key={ti} style={{ color: tokenColor[t.type] || 'var(--code-plain)' }}>
-                {t.text}
+            {l.tokens.map((tok, ti) => (
+              <span key={ti} style={{ color: tok.c || '#94a3b8' }}>
+                {tok.t}
               </span>
             ))}
           </span>
