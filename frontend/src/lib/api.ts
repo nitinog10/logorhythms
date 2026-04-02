@@ -461,6 +461,147 @@ export interface RepositoryDocumentation {
   dependencies: string
 }
 
+// ============================================================
+// Provenance (Why Graph)
+// ============================================================
+
+export type EvidenceSourceType =
+  | 'commit'
+  | 'pull_request'
+  | 'issue'
+  | 'adr'
+  | 'doc'
+  | 'comment'
+  | 'other'
+
+export type AssumptionStatus = 'active' | 'likely_stale' | 'superseded' | 'unknown'
+
+export interface EvidenceLink {
+  id: string
+  source_type: EvidenceSourceType
+  source_url: string
+  title: string
+  excerpt: string
+  confidence: number
+  created_at?: string | null
+}
+
+export interface AssumptionEntry {
+  id: string
+  statement: string
+  status: AssumptionStatus
+  confidence: number
+  evidence_ids: string[]
+  last_validated_at?: string | null
+}
+
+export interface StaleAssumptionAlert {
+  id: string
+  assumption_id: string
+  statement: string
+  file_path: string
+  symbol?: string | null
+  reason: string
+  severity: string
+  evidence_ids: string[]
+}
+
+export interface DecisionThread {
+  id: string
+  summary: string
+  evidence_ids: string[]
+  confidence: number
+}
+
+export interface ProvenanceCard {
+  id: string
+  repo_id: string
+  file_path: string
+  symbol?: string | null
+  symbol_type?: string | null
+  current_purpose: string
+  origin_summary: string
+  decision_summary: string
+  assumptions: AssumptionEntry[]
+  stale_assumptions: StaleAssumptionAlert[]
+  safe_change_notes: string[]
+  evidence_links: EvidenceLink[]
+  confidence_score: number
+  decision_threads: DecisionThread[]
+  created_at?: string
+  updated_at?: string
+  metadata?: Record<string, unknown>
+}
+
+export interface ProvenanceQueryResponse {
+  success: boolean
+  message?: string | null
+  card?: ProvenanceCard | null
+  from_cache?: boolean
+}
+
+export const provenance = {
+  query: (
+    repositoryId: string,
+    filePath: string,
+    options: {
+      symbol?: string
+      symbolType?: string
+      forceRefresh?: boolean
+    } = {}
+  ) =>
+    request<ProvenanceQueryResponse>('/provenance/query', {
+      method: 'POST',
+      body: {
+        repository_id: repositoryId,
+        file_path: filePath,
+        symbol: options.symbol,
+        symbol_type: options.symbolType,
+        force_refresh: options.forceRefresh ?? false,
+      },
+    }),
+
+  getSymbol: (
+    repoId: string,
+    filePath: string,
+    options: { symbol?: string; symbolType?: string; refresh?: boolean } = {}
+  ) => {
+    const q = new URLSearchParams({ file_path: filePath })
+    if (options.symbol) q.set('symbol', options.symbol)
+    if (options.symbolType) q.set('symbol_type', options.symbolType)
+    if (options.refresh) q.set('refresh', 'true')
+    return request<ProvenanceQueryResponse>(`/provenance/${repoId}/symbol?${q.toString()}`)
+  },
+
+  listStaleAssumptions: (repoId: string) =>
+    request<StaleAssumptionAlert[]>(`/provenance/${repoId}/stale-assumptions`),
+
+  refresh: (
+    repoId: string,
+    filePath: string,
+    options: { symbol?: string; symbolType?: string } = {}
+  ) =>
+    request<ProvenanceQueryResponse>(`/provenance/${repoId}/refresh`, {
+      method: 'POST',
+      body: {
+        file_path: filePath,
+        symbol: options.symbol,
+        symbol_type: options.symbolType,
+      },
+    }),
+
+  feedback: (
+    repoId: string,
+    filePath: string,
+    rating: 'correct' | 'partially_correct' | 'wrong',
+    symbol?: string
+  ) =>
+    request<{ success: boolean; message?: string }>(`/provenance/${repoId}/feedback`, {
+      method: 'POST',
+      body: { file_path: filePath, symbol: symbol || null, rating },
+    }),
+}
+
 export const documentation = {
   generate: (repoId: string) =>
     request<{ status: string; message: string }>(`/documentation/${repoId}/generate`, {
@@ -634,6 +775,7 @@ export const api = {
   sandbox,
   documentation,
   upload,
+  provenance,
 }
 
 export default api

@@ -428,6 +428,144 @@ class AutomationHistory(BaseModel):
     docs_url: Optional[str] = None
     docs_commit_sha: Optional[str] = None
     docs_pushed_at: Optional[str] = None
+
+
+# ============================================================
+# Provenance (Why Graph + Assumption Ledger)
+# ============================================================
+
+
+class EvidenceSourceType(str, Enum):
+    """Origin of a piece of provenance evidence"""
+
+    COMMIT = "commit"
+    PULL_REQUEST = "pull_request"
+    ISSUE = "issue"
+    ADR = "adr"
+    DOC = "doc"
+    COMMENT = "comment"
+    OTHER = "other"
+
+
+class AssumptionStatus(str, Enum):
+    """Lifecycle status for an extracted assumption"""
+
+    ACTIVE = "active"
+    LIKELY_STALE = "likely_stale"
+    SUPERSEDED = "superseded"
+    UNKNOWN = "unknown"
+
+
+class EvidenceLink(BaseModel):
+    """Single grounded evidence item (commit, PR, issue, etc.)"""
+
+    id: str
+    source_type: EvidenceSourceType
+    source_url: str
+    title: str
+    excerpt: str = ""
+    confidence: float = Field(ge=0.0, le=1.0)
+    created_at: Optional[datetime] = None
+
+
+class AssumptionEntry(BaseModel):
+    """One assumption or constraint inferred from evidence + code"""
+
+    id: str
+    statement: str
+    status: AssumptionStatus = AssumptionStatus.UNKNOWN
+    confidence: float = Field(ge=0.0, le=1.0)
+    evidence_ids: List[str] = []
+    last_validated_at: Optional[datetime] = None
+
+
+class DecisionThread(BaseModel):
+    """Thread of related decisions (supersession chain)"""
+
+    id: str
+    summary: str
+    evidence_ids: List[str] = []
+    confidence: float = Field(ge=0.0, le=1.0)
+
+
+class StaleAssumptionAlert(BaseModel):
+    """Warning that an assumption may no longer hold"""
+
+    id: str
+    assumption_id: str
+    statement: str
+    file_path: str
+    symbol: Optional[str] = None
+    reason: str
+    severity: str = "medium"  # low | medium | high
+    evidence_ids: List[str] = []
+
+
+class ProvenanceCard(BaseModel):
+    """Symbol- or file-level provenance card"""
+
+    id: str
+    repo_id: str
+    file_path: str
+    symbol: Optional[str] = None
+    symbol_type: Optional[str] = None
+    current_purpose: str = ""
+    origin_summary: str = ""
+    decision_summary: str = ""
+    assumptions: List[AssumptionEntry] = []
+    stale_assumptions: List[StaleAssumptionAlert] = []
+    safe_change_notes: List[str] = []
+    evidence_links: List[EvidenceLink] = []
+    confidence_score: float = Field(ge=0.0, le=1.0)
+    decision_threads: List[DecisionThread] = []
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    metadata: Dict[str, Any] = {}
+
+
+class ProvenanceQueryRequest(BaseModel):
+    """Request body for POST /provenance/query"""
+
+    repository_id: str
+    file_path: str
+    symbol: Optional[str] = None
+    symbol_type: Optional[str] = None
+    force_refresh: bool = False
+
+
+class ProvenanceConfig(BaseModel):
+    """Optional overrides for a single provenance run"""
+
+    max_history_commits: Optional[int] = None
+    max_prs: Optional[int] = None
+    confidence_threshold: Optional[float] = None
+
+
+class ProvenanceQueryResponse(BaseModel):
+    """API wrapper for a provenance card + status"""
+
+    success: bool = True
+    message: Optional[str] = None
+    card: Optional[ProvenanceCard] = None
+    from_cache: bool = False
+
+
+class ProvenanceFeedbackRequest(BaseModel):
+    """User feedback on provenance quality"""
+
+    file_path: str
+    symbol: Optional[str] = None
+    rating: str  # correct | partially_correct | wrong
+
+
+class ProvenanceRefreshBody(BaseModel):
+    """Force-refresh payload (repo id comes from URL)."""
+
+    file_path: str
+    symbol: Optional[str] = None
+    symbol_type: Optional[str] = None
+
+
 # Resolve forward references
 FileNode.model_rebuild()
 ASTNode.model_rebuild()

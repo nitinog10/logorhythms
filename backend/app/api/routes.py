@@ -4,7 +4,7 @@ Main API Router - Combines all route modules
 
 from fastapi import APIRouter
 
-from app.api.endpoints import auth, repositories, files, walkthroughs, diagrams, sandbox, documentation, github, upload
+from app.api.endpoints import auth, repositories, files, walkthroughs, diagrams, sandbox, documentation, github, upload, provenance
 
 router = APIRouter()
 
@@ -61,5 +61,11 @@ router.include_router(
     upload.router,
     prefix="/project",
     tags=["Manual Upload"]
+)
+
+router.include_router(
+    provenance.router,
+    prefix="/provenance",
+    tags=["Provenance"]
 )
 

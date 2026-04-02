@@ -51,6 +51,12 @@ class Settings(BaseSettings):
     
     # Repository Storage
     repos_directory: str = "./repos"
+
+    # DocuVerse Provenance (GitHub evidence + LLM synthesis)
+    provenance_max_history_commits: int = 30
+    provenance_max_prs: int = 15
+    provenance_confidence_threshold: float = 0.35
+    provenance_cache_ttl_seconds: int = 3600
     
     class Config:
         env_file = ".env"

@@ -44,8 +44,8 @@ class GitHubService:
         json: dict | None = None,
         expected: set[int] | None = None,
     ) -> dict:
-        expected = expected or {200, 201}
-        async with httpx.AsyncClient(timeout=30) as client:
+        expected = expected or {200, 201}        
+        async with httpx.AsyncClient(timeout=45) as client:
             resp = await client.request(method, url, headers=self._headers, json=json)
             if resp.status_code not in expected:
                 body = resp.json() if resp.content else {}
@@ -188,6 +188,78 @@ class GitHubService:
             f"{GITHUB_API}/repos/{owner}/{repo}/contents/{path}?ref={branch}",
         )
         return base64.b64decode(data["content"]).decode()
+
+    # ── Provenance: commits, PRs, issues ────────────────────────
+
+    async def list_commits_for_path(
+        self,
+        owner: str,
+        repo: str,
+        path: str,
+        *,
+        sha: str = "main",
+        per_page: int = 30,
+    ) -> list[dict]:
+        """List commits that touched *path* on *sha* (branch or tag)."""
+        from urllib.parse import quote
+
+        enc_path = quote(path, safe="/")
+        url = (
+            f"{GITHUB_API}/repos/{owner}/{repo}/commits"
+            f"?sha={quote(sha, safe='')}&path={enc_path}&per_page={per_page}"
+        )
+        data = await self._request("GET", url)
+        return data if isinstance(data, list) else []
+
+    async def get_commit(self, owner: str, repo: str, commit_sha: str) -> dict:
+        """GET /repos/{owner}/{repo}/commits/{sha}"""
+        return await self._request(
+            "GET",
+            f"{GITHUB_API}/repos/{owner}/{repo}/commits/{commit_sha}",
+        )
+
+    async def list_pull_requests_for_commit(
+        self,
+        owner: str,
+        repo: str,
+        commit_sha: str,
+    ) -> list[dict]:
+        """
+        GET /repos/{owner}/{repo}/commits/{sha}/pulls
+        Requires preview media type for some API versions.
+        """
+        headers = {
+            **self._headers,
+            "Accept": "application/vnd.github.groot-preview+json",
+        }
+        async with httpx.AsyncClient(timeout=45) as client:
+            resp = await client.request(
+                "GET",
+                f"{GITHUB_API}/repos/{owner}/{repo}/commits/{commit_sha}/pulls",
+                headers=headers,
+            )
+            if resp.status_code not in (200, 404):
+                body = resp.json() if resp.content else {}
+                msg = body.get("message", resp.text[:300])
+                raise GitHubAPIError(resp.status_code, msg, body)
+            if resp.status_code == 404:
+                return []
+            data = resp.json()
+            return data if isinstance(data, list) else []
+
+    async def get_pull_request(self, owner: str, repo: str, number: int) -> dict:
+        """GET /repos/{owner}/{repo}/pulls/{number}"""
+        return await self._request(
+            "GET",
+            f"{GITHUB_API}/repos/{owner}/{repo}/pulls/{number}",
+        )
+
+    async def get_issue(self, owner: str, repo: str, number: int) -> dict:
+        """GET /repos/{owner}/{repo}/issues/{number}"""
+        return await self._request(
+            "GET",
+            f"{GITHUB_API}/repos/{owner}/{repo}/issues/{number}",
+        )
 
     # ── Full-codebase helpers ─────────────────────────────────
 

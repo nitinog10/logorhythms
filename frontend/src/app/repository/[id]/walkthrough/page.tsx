@@ -18,6 +18,7 @@ import {
   AlertCircle,
   Zap,
   X,
+  History,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
@@ -202,6 +203,15 @@ export default function WalkthroughPage({ params }: { params: { id: string } }) 
           </div>
         </div>
 
+        {repo?.source === 'github' && selectedFile && (
+          <Link
+            href={`/repository/${params.id}/provenance?file=${encodeURIComponent(selectedFile)}`}
+            className="hidden sm:inline-flex items-center gap-1.5 text-[12px] font-semibold text-indigo-400 hover:text-indigo-300 px-3 py-1.5 rounded-lg border border-indigo-500/20 bg-indigo-500/5 mr-2"
+          >
+            <History className="w-3.5 h-3.5" />
+            Why
+          </Link>
+        )}
         <div className="flex items-center bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-0.5">
           <PanelButton
             active={activePanel === 'files'}

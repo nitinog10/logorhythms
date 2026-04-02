@@ -19,6 +19,8 @@ from app.models.schemas import (
     Repository, User,
     WalkthroughScript, ScriptSegment, ViewMode,
     AudioWalkthrough, AudioSegment,
+    ProvenanceCard, EvidenceLink, AssumptionEntry, StaleAssumptionAlert,
+    DecisionThread, EvidenceSourceType, AssumptionStatus,
 )
 
 settings = get_settings()
@@ -643,3 +645,256 @@ def load_automation_history(full_name: str) -> dict:
         print(f"Error loading automation history from DynamoDB: {e}")
 
     return {}
+
+
+# ---------------------------------------------------------------------------
+# Provenance cards (per repo + file + symbol)
+# ---------------------------------------------------------------------------
+
+_provenance_memory: Dict[str, dict] = {}
+
+
+def _provenance_memory_key(repo_id: str, file_path: str, symbol: Optional[str]) -> str:
+    return f"{repo_id}\0{file_path}\0{symbol or '__file__'}"
+
+
+def _provenance_sort_key(file_path: str, symbol: Optional[str]) -> str:
+    return f"{file_path}\0{symbol or '__file__'}"
+
+
+def _card_from_json(data: dict) -> ProvenanceCard:
+    evs = []
+    for e in data.get("evidence_links", []):
+        st = e.get("source_type", "commit")
+        try:
+            st_enum = EvidenceSourceType(st)
+        except ValueError:
+            st_enum = EvidenceSourceType.OTHER
+        ca = e.get("created_at")
+        created = None
+        if ca:
+            try:
+                created = datetime.fromisoformat(ca.replace("Z", "+00:00"))
+            except Exception:
+                pass
+        evs.append(
+            EvidenceLink(
+                id=e["id"],
+                source_type=st_enum,
+                source_url=e.get("source_url", ""),
+                title=e.get("title", ""),
+                excerpt=e.get("excerpt", ""),
+                confidence=float(e.get("confidence", 0.5)),
+                created_at=created,
+            )
+        )
+    assumptions = []
+    for a in data.get("assumptions", []):
+        st = a.get("status", "unknown")
+        try:
+            ast = AssumptionStatus(st)
+        except ValueError:
+            ast = AssumptionStatus.UNKNOWN
+        lv = a.get("last_validated_at")
+        last_v = None
+        if lv:
+            try:
+                last_v = datetime.fromisoformat(lv.replace("Z", "+00:00"))
+            except Exception:
+                pass
+        assumptions.append(
+            AssumptionEntry(
+                id=a["id"],
+                statement=a.get("statement", ""),
+                status=ast,
+                confidence=float(a.get("confidence", 0.5)),
+                evidence_ids=a.get("evidence_ids", []),
+                last_validated_at=last_v,
+            )
+        )
+    stale = []
+    for s in data.get("stale_assumptions", []):
+        stale.append(
+            StaleAssumptionAlert(
+                id=s["id"],
+                assumption_id=s.get("assumption_id", ""),
+                statement=s.get("statement", ""),
+                file_path=s.get("file_path", ""),
+                symbol=s.get("symbol"),
+                reason=s.get("reason", ""),
+                severity=s.get("severity", "medium"),
+                evidence_ids=s.get("evidence_ids", []),
+            )
+        )
+    threads = []
+    for t in data.get("decision_threads", []):
+        threads.append(
+            DecisionThread(
+                id=t["id"],
+                summary=t.get("summary", ""),
+                evidence_ids=t.get("evidence_ids", []),
+                confidence=float(t.get("confidence", 0.5)),
+            )
+        )
+    cr = data.get("created_at")
+    up = data.get("updated_at")
+    created_at = datetime.now(timezone.utc)
+    updated_at = datetime.now(timezone.utc)
+    if cr:
+        try:
+            created_at = datetime.fromisoformat(cr.replace("Z", "+00:00"))
+        except Exception:
+            pass
+    if up:
+        try:
+            updated_at = datetime.fromisoformat(up.replace("Z", "+00:00"))
+        except Exception:
+            pass
+
+    return ProvenanceCard(
+        id=data["id"],
+        repo_id=data["repo_id"],
+        file_path=data["file_path"],
+        symbol=data.get("symbol"),
+        symbol_type=data.get("symbol_type"),
+        current_purpose=data.get("current_purpose", ""),
+        origin_summary=data.get("origin_summary", ""),
+        decision_summary=data.get("decision_summary", ""),
+        assumptions=assumptions,
+        stale_assumptions=stale,
+        safe_change_notes=data.get("safe_change_notes", []),
+        evidence_links=evs,
+        confidence_score=float(data.get("confidence_score", 0.5)),
+        decision_threads=threads,
+        created_at=created_at,
+        updated_at=updated_at,
+        metadata=data.get("metadata") or {},
+    )
+
+
+def _card_to_dict(card: ProvenanceCard) -> dict:
+    return json.loads(card.model_dump_json())
+
+
+def save_provenance_card(card: ProvenanceCard) -> None:
+    """Persist a single provenance card (DynamoDB + in-memory fallback)."""
+    key = _provenance_memory_key(card.repo_id, card.file_path, card.symbol)
+    _provenance_memory[key] = _card_to_dict(card)
+
+    try:
+        dynamodb = _get_dynamodb_resource()
+        table = dynamodb.Table(_table_name("provenance"))
+        sk = _provenance_sort_key(card.file_path, card.symbol)
+        table.put_item(
+            Item={
+                "repo_id": card.repo_id,
+                "sk": sk,
+                "file_path": card.file_path,
+                "symbol": card.symbol or "",
+                "updated_at": card.updated_at.isoformat(),
+                "card_json": json.dumps(_card_to_dict(card), default=str),
+            }
+        )
+    except ClientError as e:
+        if e.response["Error"]["Code"] != "ResourceNotFoundException":
+            print(f"Error saving provenance card: {e}")
+    except Exception as e:
+        print(f"Error saving provenance card: {e}")
+
+
+def load_provenance_card(repo_id: str, file_path: str, symbol: Optional[str]) -> Optional[ProvenanceCard]:
+    """Load provenance card if present."""
+    mem_key = _provenance_memory_key(repo_id, file_path, symbol)
+    raw = _provenance_memory.get(mem_key)
+    if raw:
+        return _card_from_json(raw)
+
+    try:
+        dynamodb = _get_dynamodb_resource()
+        table = dynamodb.Table(_table_name("provenance"))
+        sk = _provenance_sort_key(file_path, symbol)
+        resp = table.get_item(Key={"repo_id": repo_id, "sk": sk})
+        item = resp.get("Item")
+        if not item:
+            return None
+        data = json.loads(item.get("card_json", "{}"))
+        card = _card_from_json(data)
+        _provenance_memory[mem_key] = _card_to_dict(card)
+        return card
+    except ClientError as e:
+        if e.response["Error"]["Code"] != "ResourceNotFoundException":
+            print(f"Error loading provenance card: {e}")
+        return None
+    except Exception as e:
+        print(f"Error loading provenance card: {e}")
+        return None
+
+
+def delete_provenance_card(repo_id: str, file_path: str, symbol: Optional[str]) -> None:
+    mem_key = _provenance_memory_key(repo_id, file_path, symbol)
+    _provenance_memory.pop(mem_key, None)
+    try:
+        dynamodb = _get_dynamodb_resource()
+        table = dynamodb.Table(_table_name("provenance"))
+        sk = _provenance_sort_key(file_path, symbol)
+        table.delete_item(Key={"repo_id": repo_id, "sk": sk})
+    except Exception as e:
+        print(f"Error deleting provenance card: {e}")
+
+
+def list_provenance_cards_for_repo(repo_id: str) -> List[ProvenanceCard]:
+    """Query all provenance cards for a repository (for stale-assumption rollup)."""
+    out: List[ProvenanceCard] = []
+    seen_sk: set[str] = set()
+    for k, v in _provenance_memory.items():
+        if k.startswith(repo_id + "\0"):
+            try:
+                card = _card_from_json(v)
+                sk = _provenance_sort_key(card.file_path, card.symbol)
+                if sk not in seen_sk:
+                    seen_sk.add(sk)
+                    out.append(card)
+            except Exception:
+                continue
+
+    try:
+        dynamodb = _get_dynamodb_resource()
+        table = dynamodb.Table(_table_name("provenance"))
+        resp = table.query(
+            KeyConditionExpression="repo_id = :r",
+            ExpressionAttributeValues={":r": repo_id},
+        )
+        for item in resp.get("Items", []):
+            sk = item.get("sk", "")
+            if sk in seen_sk:
+                continue
+            seen_sk.add(sk)
+            try:
+                data = json.loads(item.get("card_json", "{}"))
+                out.append(_card_from_json(data))
+            except Exception:
+                continue
+        while "LastEvaluatedKey" in resp:
+            resp = table.query(
+                KeyConditionExpression="repo_id = :r",
+                ExpressionAttributeValues={":r": repo_id},
+                ExclusiveStartKey=resp["LastEvaluatedKey"],
+            )
+            for item in resp.get("Items", []):
+                sk = item.get("sk", "")
+                if sk in seen_sk:
+                    continue
+                seen_sk.add(sk)
+                try:
+                    data = json.loads(item.get("card_json", "{}"))
+                    out.append(_card_from_json(data))
+                except Exception:
+                    continue
+        return out
+    except ClientError as e:
+        if e.response["Error"]["Code"] != "ResourceNotFoundException":
+            print(f"Error listing provenance cards: {e}")
+        return out
+    except Exception as e:
+        print(f"Error listing provenance cards: {e}")
+        return out

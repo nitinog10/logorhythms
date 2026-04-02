@@ -21,6 +21,7 @@ import {
   Sparkles,
   AlertCircle,
   BookOpen,
+  History,
 } from 'lucide-react'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { repositories, files, FileNode, Repository } from '@/lib/api'
@@ -391,6 +392,14 @@ export default function RepositoryPage({ params }: { params: { id: string } }) {
                         {file.language && (
                           <span className="text-[11px] text-[var(--text-muted)] font-medium">{file.language}</span>
                         )}
+                        {repo.source === 'github' && (
+                          <Link
+                            href={`/repository/${params.id}/provenance?file=${encodeURIComponent(file.path)}`}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 transition-colors opacity-0 group-hover:opacity-100"
+                          >
+                            <History className="w-3 h-3" /> Why
+                          </Link>
+                        )}
                         <Link
                           href={`/repository/${params.id}/walkthrough?file=${encodeURIComponent(file.path)}`}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 transition-colors opacity-0 group-hover:opacity-100"
@@ -409,6 +418,16 @@ export default function RepositoryPage({ params }: { params: { id: string } }) {
                 <div className="rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] p-5">
                   <h3 className="text-[15px] font-semibold text-[var(--text-primary)] mb-4">Quick Actions</h3>
                   <div className="space-y-2">
+                    {repo.source === 'github' && (
+                      <Link
+                        href={`/repository/${params.id}/provenance`}
+                        className="flex items-center gap-3 p-3 rounded-xl bg-[var(--hover-bg)] hover:bg-[var(--input-bg)] transition-colors group"
+                      >
+                        <History className="w-4 h-4 text-indigo-400" />
+                        <span className="text-[14px] text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors">Provenance (Why)</span>
+                        <ChevronRight className="w-3.5 h-3.5 text-[var(--text-faint)] ml-auto group-hover:translate-x-0.5 group-hover:text-[var(--text-muted)] transition-all" />
+                      </Link>
+                    )}
                     <Link
                       href={`/repository/${params.id}/walkthrough`}
                       className="flex items-center gap-3 p-3 rounded-xl bg-[var(--hover-bg)] hover:bg-[var(--input-bg)] transition-colors group"
