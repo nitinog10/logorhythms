@@ -333,6 +333,71 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                     },
                     required: ["owner", "repo", "issue_number", "instruction"],
                 },
+            },
+
+            /* --- SIGNAL (Customer Voice-to-Code) --- */
+            {
+                name: "import_customer_signal",
+                description: "Import a customer support ticket and generate a Signal Packet with AI code mapping, classification, and fix recommendations.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        repo_id: { type: "string", description: "The repository ID" },
+                        title: { type: "string", description: "The customer ticket title" },
+                        body: { type: "string", description: "The customer ticket body/description" },
+                        customer_segment: { type: "string", description: "Optional customer segment (e.g. 'enterprise', 'free')" },
+                    },
+                    required: ["repo_id", "title", "body"],
+                },
+            },
+            {
+                name: "list_signal_packets",
+                description: "List all Signal Packets for a repository. Each packet contains issue classification, code matches, fix plan, and customer response draft.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        repo_id: { type: "string", description: "The repository ID" },
+                    },
+                    required: ["repo_id"],
+                },
+            },
+            {
+                name: "get_signal_packet",
+                description: "Get a single Signal Packet by ID with full details including code matches, fix summary, and customer response draft.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        repo_id: { type: "string", description: "The repository ID" },
+                        packet_id: { type: "string", description: "The Signal Packet ID" },
+                    },
+                    required: ["repo_id", "packet_id"],
+                },
+            },
+            {
+                name: "create_issue_from_signal",
+                description: "Create a GitHub issue from a Signal Packet with structured issue body including root cause, fix plan, and affected files.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        repo_id: { type: "string", description: "The repository ID" },
+                        packet_id: { type: "string", description: "The Signal Packet ID" },
+                        owner: { type: "string", description: "GitHub repo owner" },
+                        repo: { type: "string", description: "GitHub repo name" },
+                    },
+                    required: ["repo_id", "packet_id", "owner", "repo"],
+                },
+            },
+            {
+                name: "get_signal_resolution_draft",
+                description: "Get the customer-safe response draft from a Signal Packet, ready to send to the customer.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        repo_id: { type: "string", description: "The repository ID" },
+                        packet_id: { type: "string", description: "The Signal Packet ID" },
+                    },
+                    required: ["repo_id", "packet_id"],
+                },
             }
         ],
     };
@@ -513,6 +578,50 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                     instruction: args.instruction,
                 });
                 return { content: [{ type: "text", text: JSON.stringify(res.data, null, 2) }] };
+            }
+
+            /* --- SIGNAL (Customer Voice-to-Code) --- */
+            case "import_customer_signal": {
+                if (!args.repo_id || !args.title || !args.body) throw new Error("Missing 'repo_id', 'title', or 'body'");
+                const res = await apiClient.post(`/signal/import`, {
+                    repo_id: args.repo_id,
+                    title: args.title,
+                    body: args.body,
+                    source: "manual",
+                    customer_segment: args.customer_segment || null,
+                });
+                return { content: [{ type: "text", text: JSON.stringify(res.data, null, 2) }] };
+            }
+            case "list_signal_packets": {
+                if (!args.repo_id) throw new Error("Missing 'repo_id'");
+                const res = await apiClient.get(`/signal/${args.repo_id}/packets`);
+                return { content: [{ type: "text", text: JSON.stringify(res.data, null, 2) }] };
+            }
+            case "get_signal_packet": {
+                if (!args.repo_id || !args.packet_id) throw new Error("Missing 'repo_id' or 'packet_id'");
+                const res = await apiClient.get(`/signal/${args.repo_id}/packets/${args.packet_id}`);
+                return { content: [{ type: "text", text: JSON.stringify(res.data, null, 2) }] };
+            }
+            case "create_issue_from_signal": {
+                if (!args.repo_id || !args.packet_id || !args.owner || !args.repo) throw new Error("Missing inputs");
+                const res = await apiClient.post(`/signal/${args.repo_id}/packets/${args.packet_id}/create-issue`, {
+                    owner: args.owner,
+                    repo: args.repo,
+                    additional_labels: [],
+                });
+                return { content: [{ type: "text", text: JSON.stringify(res.data, null, 2) }] };
+            }
+            case "get_signal_resolution_draft": {
+                if (!args.repo_id || !args.packet_id) throw new Error("Missing 'repo_id' or 'packet_id'");
+                const res = await apiClient.get(`/signal/${args.repo_id}/packets/${args.packet_id}`);
+                const packet = res.data;
+                const draft = {
+                    customer_response_draft: packet.customer_response_draft || "No draft available.",
+                    issue_type: packet.issue_type,
+                    business_urgency: packet.business_urgency,
+                    fix_summary: packet.fix_summary,
+                };
+                return { content: [{ type: "text", text: JSON.stringify(draft, null, 2) }] };
             }
 
             default:

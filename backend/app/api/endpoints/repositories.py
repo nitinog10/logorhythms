@@ -128,7 +128,18 @@ async def clone_repository(repo: Repository, access_token: str):
         # Rename extracted folder to our expected path
         extracted_path = os.path.join(repos_dir, extracted_name)
         if os.path.exists(extracted_path):
-            os.rename(extracted_path, local_path)
+            # Use shutil.move with retry — on Windows, uvicorn's file watcher
+            # can hold brief locks on newly extracted files, causing PermissionError.
+            import time as _time
+            for attempt in range(5):
+                try:
+                    shutil.move(extracted_path, local_path)
+                    break
+                except PermissionError:
+                    if attempt < 4:
+                        _time.sleep(1)
+                    else:
+                        raise
     
     # Update repository record
     repo.local_path = local_path

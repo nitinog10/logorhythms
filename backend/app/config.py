@@ -57,6 +57,14 @@ class Settings(BaseSettings):
     provenance_max_prs: int = 15
     provenance_confidence_threshold: float = 0.35
     provenance_cache_ttl_seconds: int = 3600
+
+    # DocuVerse Signal (Customer Voice-to-Code)
+    linear_api_key: str = ""
+    zendesk_subdomain: str = ""
+    zendesk_api_token: str = ""
+    intercom_access_token: str = ""
+    signal_default_priority_threshold: float = 0.5
+    signal_max_cluster_distance: float = 0.3
     
     class Config:
         env_file = ".env"

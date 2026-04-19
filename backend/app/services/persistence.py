@@ -898,3 +898,247 @@ def list_provenance_cards_for_repo(repo_id: str) -> List[ProvenanceCard]:
     except Exception as e:
         print(f"Error listing provenance cards: {e}")
         return out
+
+
+# ---------------------------------------------------------------------------
+# Signal Persistence (Customer Voice-to-Code)
+# ---------------------------------------------------------------------------
+
+_signal_configs_memory: Dict[str, dict] = {}
+_signals_memory: Dict[str, dict] = {}
+_signal_packets_memory: Dict[str, dict] = {}
+_signal_clusters_memory: Dict[str, dict] = {}
+
+
+# ── Signal Config ──
+
+def save_signal_config(config_data: dict) -> None:
+    """Save signal source config (DynamoDB + in-memory fallback)."""
+    key = config_data.get("repo_id", "")
+    _signal_configs_memory[key] = config_data
+    try:
+        dynamodb = _get_dynamodb_resource()
+        table = dynamodb.Table(_table_name("signal_configs"))
+        table.put_item(Item={
+            "repo_id": key,
+            "data_json": json.dumps(config_data, default=str),
+        })
+    except ClientError as e:
+        if e.response["Error"]["Code"] != "ResourceNotFoundException":
+            print(f"Error saving signal config: {e}")
+    except Exception as e:
+        print(f"Error saving signal config: {e}")
+
+
+def load_signal_config(repo_id: str) -> Optional[dict]:
+    """Load signal source config for a repo."""
+    if repo_id in _signal_configs_memory:
+        return _signal_configs_memory[repo_id]
+    try:
+        dynamodb = _get_dynamodb_resource()
+        table = dynamodb.Table(_table_name("signal_configs"))
+        resp = table.get_item(Key={"repo_id": repo_id})
+        item = resp.get("Item")
+        if item:
+            data = json.loads(item.get("data_json", "{}"))
+            _signal_configs_memory[repo_id] = data
+            return data
+    except ClientError as e:
+        if e.response["Error"]["Code"] != "ResourceNotFoundException":
+            print(f"Error loading signal config: {e}")
+    except Exception as e:
+        print(f"Error loading signal config: {e}")
+    return None
+
+
+# ── Customer Signals ──
+
+def save_customer_signal(signal_data: dict) -> None:
+    """Save a customer signal (DynamoDB + in-memory)."""
+    sid = signal_data.get("id", "")
+    _signals_memory[sid] = signal_data
+    try:
+        dynamodb = _get_dynamodb_resource()
+        table = dynamodb.Table(_table_name("signals"))
+        table.put_item(Item={
+            "repo_id": signal_data.get("repo_id", ""),
+            "id": sid,
+            "data_json": json.dumps(signal_data, default=str),
+        })
+    except ClientError as e:
+        if e.response["Error"]["Code"] != "ResourceNotFoundException":
+            print(f"Error saving customer signal: {e}")
+    except Exception as e:
+        print(f"Error saving customer signal: {e}")
+
+
+def load_customer_signals(repo_id: str) -> List[dict]:
+    """Load all customer signals for a repo."""
+    results = []
+    seen_ids: set = set()
+
+    # In-memory first
+    for sid, data in _signals_memory.items():
+        if data.get("repo_id") == repo_id:
+            results.append(data)
+            seen_ids.add(sid)
+
+    # DynamoDB
+    try:
+        dynamodb = _get_dynamodb_resource()
+        table = dynamodb.Table(_table_name("signals"))
+        resp = table.query(
+            KeyConditionExpression="repo_id = :r",
+            ExpressionAttributeValues={":r": repo_id},
+        )
+        for item in resp.get("Items", []):
+            sid = item.get("id", "")
+            if sid in seen_ids:
+                continue
+            seen_ids.add(sid)
+            data = json.loads(item.get("data_json", "{}"))
+            _signals_memory[sid] = data
+            results.append(data)
+    except ClientError as e:
+        if e.response["Error"]["Code"] != "ResourceNotFoundException":
+            print(f"Error loading signals: {e}")
+    except Exception as e:
+        print(f"Error loading signals: {e}")
+
+    return results
+
+
+# ── Signal Packets ──
+
+def save_signal_packet(packet_data: dict) -> None:
+    """Save a signal packet (DynamoDB + in-memory)."""
+    pid = packet_data.get("id", "")
+    _signal_packets_memory[pid] = packet_data
+    try:
+        dynamodb = _get_dynamodb_resource()
+        table = dynamodb.Table(_table_name("signal_packets"))
+        table.put_item(Item={
+            "repo_id": packet_data.get("repo_id", ""),
+            "id": pid,
+            "data_json": json.dumps(packet_data, default=str),
+        })
+    except ClientError as e:
+        if e.response["Error"]["Code"] != "ResourceNotFoundException":
+            print(f"Error saving signal packet: {e}")
+    except Exception as e:
+        print(f"Error saving signal packet: {e}")
+
+
+def load_signal_packets(repo_id: str) -> List[dict]:
+    """Load all signal packets for a repo."""
+    results = []
+    seen_ids: set = set()
+
+    for pid, data in _signal_packets_memory.items():
+        if data.get("repo_id") == repo_id:
+            results.append(data)
+            seen_ids.add(pid)
+
+    try:
+        dynamodb = _get_dynamodb_resource()
+        table = dynamodb.Table(_table_name("signal_packets"))
+        resp = table.query(
+            KeyConditionExpression="repo_id = :r",
+            ExpressionAttributeValues={":r": repo_id},
+        )
+        for item in resp.get("Items", []):
+            pid = item.get("id", "")
+            if pid in seen_ids:
+                continue
+            seen_ids.add(pid)
+            data = json.loads(item.get("data_json", "{}"))
+            _signal_packets_memory[pid] = data
+            results.append(data)
+    except ClientError as e:
+        if e.response["Error"]["Code"] != "ResourceNotFoundException":
+            print(f"Error loading signal packets: {e}")
+    except Exception as e:
+        print(f"Error loading signal packets: {e}")
+
+    return results
+
+
+def load_signal_packet(packet_id: str) -> Optional[dict]:
+    """Load a single signal packet by ID."""
+    if packet_id in _signal_packets_memory:
+        return _signal_packets_memory[packet_id]
+    try:
+        dynamodb = _get_dynamodb_resource()
+        table = dynamodb.Table(_table_name("signal_packets"))
+        # Scan with filter since we don't have the partition key
+        resp = table.scan(
+            FilterExpression="id = :pid",
+            ExpressionAttributeValues={":pid": packet_id},
+            Limit=1,
+        )
+        items = resp.get("Items", [])
+        if items:
+            data = json.loads(items[0].get("data_json", "{}"))
+            _signal_packets_memory[packet_id] = data
+            return data
+    except ClientError as e:
+        if e.response["Error"]["Code"] != "ResourceNotFoundException":
+            print(f"Error loading signal packet: {e}")
+    except Exception as e:
+        print(f"Error loading signal packet: {e}")
+    return None
+
+
+# ── Signal Clusters ──
+
+def save_signal_cluster(cluster_data: dict) -> None:
+    """Save a signal cluster (DynamoDB + in-memory)."""
+    cid = cluster_data.get("id", "")
+    _signal_clusters_memory[cid] = cluster_data
+    try:
+        dynamodb = _get_dynamodb_resource()
+        table = dynamodb.Table(_table_name("signal_clusters"))
+        table.put_item(Item={
+            "repo_id": cluster_data.get("repo_id", ""),
+            "id": cid,
+            "data_json": json.dumps(cluster_data, default=str),
+        })
+    except ClientError as e:
+        if e.response["Error"]["Code"] != "ResourceNotFoundException":
+            print(f"Error saving signal cluster: {e}")
+    except Exception as e:
+        print(f"Error saving signal cluster: {e}")
+
+
+def load_signal_clusters(repo_id: str) -> List[dict]:
+    """Load all signal clusters for a repo."""
+    results = []
+    seen_ids: set = set()
+
+    for cid, data in _signal_clusters_memory.items():
+        if data.get("repo_id") == repo_id:
+            results.append(data)
+            seen_ids.add(cid)
+
+    try:
+        dynamodb = _get_dynamodb_resource()
+        table = dynamodb.Table(_table_name("signal_clusters"))
+        resp = table.query(
+            KeyConditionExpression="repo_id = :r",
+            ExpressionAttributeValues={":r": repo_id},
+        )
+        for item in resp.get("Items", []):
+            cid = item.get("id", "")
+            if cid in seen_ids:
+                continue
+            seen_ids.add(cid)
+            data = json.loads(item.get("data_json", "{}"))
+            _signal_clusters_memory[cid] = data
+            results.append(data)
+    except ClientError as e:
+        if e.response["Error"]["Code"] != "ResourceNotFoundException":
+            print(f"Error loading signal clusters: {e}")
+    except Exception as e:
+        print(f"Error loading signal clusters: {e}")
+
+    return results

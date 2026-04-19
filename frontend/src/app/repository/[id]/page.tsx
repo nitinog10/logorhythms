@@ -22,6 +22,7 @@ import {
   AlertCircle,
   BookOpen,
   History,
+  Zap,
 } from 'lucide-react'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { repositories, files, FileNode, Repository } from '@/lib/api'
@@ -428,6 +429,14 @@ export default function RepositoryPage({ params }: { params: { id: string } }) {
                         <ChevronRight className="w-3.5 h-3.5 text-[var(--text-faint)] ml-auto group-hover:translate-x-0.5 group-hover:text-[var(--text-muted)] transition-all" />
                       </Link>
                     )}
+                    <Link
+                      href={`/repository/${params.id}/signal`}
+                      className="flex items-center gap-3 p-3 rounded-xl bg-[var(--hover-bg)] hover:bg-[var(--input-bg)] transition-colors group"
+                    >
+                      <Zap className="w-4 h-4 text-amber-400" />
+                      <span className="text-[14px] text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors">Signal (Customer Voice)</span>
+                      <ChevronRight className="w-3.5 h-3.5 text-[var(--text-faint)] ml-auto group-hover:translate-x-0.5 group-hover:text-[var(--text-muted)] transition-all" />
+                    </Link>
                     <Link
                       href={`/repository/${params.id}/walkthrough`}
                       className="flex items-center gap-3 p-3 rounded-xl bg-[var(--hover-bg)] hover:bg-[var(--input-bg)] transition-colors group"

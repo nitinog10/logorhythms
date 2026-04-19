@@ -16,6 +16,7 @@ import { ImpactPanel } from './impact/impactPanel';
 import { DiagramPanel } from './diagrams/diagramPanel';
 import { DocsPanel } from './docs/docsPanel';
 import { runSandbox } from './sandbox/sandboxCommand';
+import { SignalPanel } from './signal/signalPanel';
 import { DiagramType, FileNode } from './api/types';
 
 let statusBar: StatusBarManager;
@@ -279,6 +280,23 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('docuverse.runSandbox', () => runSandbox(client))
   );
 
+  // Open Signal Panel
+  context.subscriptions.push(
+    vscode.commands.registerCommand('docuverse.openSignal', async () => {
+      if (!auth.isLoggedIn) {
+        vscode.window.showWarningMessage('DocuVerse: Please sign in first.');
+        return;
+      }
+      const repoId = hubProvider?.getSelectedRepoId();
+      if (!repoId) {
+        vscode.window.showWarningMessage('DocuVerse: Select a repository in the sidebar first.');
+        return;
+      }
+      const repoFullName = hubProvider.getSelectedRepoFullName() || 'Repository';
+      await SignalPanel.show(context.extensionUri, client, repoId, repoFullName);
+    })
+  );
+
   // Quick Actions (unified entry point)
   context.subscriptions.push(
     vscode.commands.registerCommand('docuverse.quickAction', async () => {
@@ -289,6 +307,7 @@ export function activate(context: vscode.ExtensionContext) {
           { label: '$(type-hierarchy) Visualize as Diagram', description: 'Generate diagram', value: 'diagram' },
           { label: '$(book) Generate Documentation', description: 'Auto-generate docs', value: 'docs' },
           { label: '$(play) Run Selection in Sandbox', description: 'Execute code safely', value: 'sandbox' },
+          { label: '$(zap) Signal (Customer Voice)', description: 'View customer signal packets', value: 'signal' },
         ],
         { title: 'DocuVerse AI: Quick Actions', placeHolder: 'What would you like to do?' }
       );
@@ -300,6 +319,7 @@ export function activate(context: vscode.ExtensionContext) {
           diagram: 'docuverse.generateDiagram',
           docs: 'docuverse.generateDocs',
           sandbox: 'docuverse.runSandbox',
+          signal: 'docuverse.openSignal',
         };
         vscode.commands.executeCommand(commandMap[action.value]);
       }

@@ -566,6 +566,173 @@ class ProvenanceRefreshBody(BaseModel):
     symbol_type: Optional[str] = None
 
 
+
+# ============================================================
+# Signal Models (Customer Voice-to-Code Copilot)
+# ============================================================
+
+
+class SignalSource(str, Enum):
+    """Ticket source platform"""
+    LINEAR = "linear"
+    ZENDESK = "zendesk"
+    INTERCOM = "intercom"
+    MANUAL = "manual"
+
+
+class SignalStatus(str, Enum):
+    """Signal processing status"""
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class SignalIssueType(str, Enum):
+    """Classified issue type"""
+    BUG = "bug"
+    FEATURE_REQUEST = "feature_request"
+    QUESTION = "question"
+    PERFORMANCE = "performance"
+    UX = "ux"
+    SECURITY = "security"
+    OTHER = "other"
+
+
+class SignalUrgency(str, Enum):
+    """Business urgency level"""
+    CRITICAL = "critical"
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+
+
+class SignalSourceConfig(BaseModel):
+    """Configuration for a ticket source integration"""
+    id: str
+    repo_id: str
+    source: SignalSource = SignalSource.MANUAL
+    enabled: bool = True
+    api_key: Optional[str] = None
+    webhook_secret: Optional[str] = None
+    auto_create_issues: bool = False
+    priority_threshold: float = Field(default=0.5, ge=0.0, le=1.0)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class CustomerSignal(BaseModel):
+    """Normalized customer ticket / feedback signal"""
+    id: str
+    repo_id: str
+    source: SignalSource = SignalSource.MANUAL
+    external_ticket_id: Optional[str] = None
+    title: str
+    body: str
+    customer_segment: Optional[str] = None
+    priority: Optional[str] = None
+    status: SignalStatus = SignalStatus.PENDING
+    tags: List[str] = []
+    metadata: Dict[str, Any] = {}
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class SignalCluster(BaseModel):
+    """Cluster of related customer signals (duplicate detection)"""
+    id: str
+    repo_id: str
+    representative_title: str
+    signal_ids: List[str] = []
+    size: int = 0
+    combined_urgency: SignalUrgency = SignalUrgency.MEDIUM
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class SignalCodeMatch(BaseModel):
+    """A code area matched to a signal"""
+    file_path: str
+    symbol: Optional[str] = None
+    confidence: float = Field(ge=0.0, le=1.0)
+    snippet: Optional[str] = None
+    start_line: Optional[int] = None
+    end_line: Optional[int] = None
+
+
+class SignalPacket(BaseModel):
+    """Complete Signal Packet — the core output of the Signal feature"""
+    id: str
+    repo_id: str
+    signal_id: str
+    cluster_id: Optional[str] = None
+    issue_type: SignalIssueType = SignalIssueType.OTHER
+    business_urgency: SignalUrgency = SignalUrgency.MEDIUM
+    duplicate_count: int = 0
+    likely_files: List[str] = []
+    likely_symbols: List[str] = []
+    code_matches: List[SignalCodeMatch] = []
+    owner_suggestions: List[str] = []
+    fix_summary: str = ""
+    root_cause_hypothesis: str = ""
+    docs_update_suggestions: List[str] = []
+    customer_response_draft: str = ""
+    confidence_score: float = Field(default=0.5, ge=0.0, le=1.0)
+    github_issue_url: Optional[str] = None
+    github_issue_number: Optional[int] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    metadata: Dict[str, Any] = {}
+
+
+class ResolutionDraft(BaseModel):
+    """Customer-safe resolution summary after a fix lands"""
+    id: str
+    packet_id: str
+    summary: str
+    changelog_entry: Optional[str] = None
+    help_center_update: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+# ── Signal Request / Response models ──
+
+class SignalImportRequest(BaseModel):
+    """Request to import a customer signal manually"""
+    repo_id: str
+    title: str
+    body: str
+    source: SignalSource = SignalSource.MANUAL
+    external_ticket_id: Optional[str] = None
+    customer_segment: Optional[str] = None
+    priority: Optional[str] = None
+    tags: List[str] = []
+
+
+class SignalConfigRequest(BaseModel):
+    """Request to update signal source configuration"""
+    source: SignalSource = SignalSource.MANUAL
+    enabled: bool = True
+    api_key: Optional[str] = None
+    auto_create_issues: bool = False
+    priority_threshold: float = Field(default=0.5, ge=0.0, le=1.0)
+
+
+class SignalPacketResponse(BaseModel):
+    """API response wrapper for signal packets"""
+    success: bool = True
+    message: Optional[str] = None
+    packet: Optional[SignalPacket] = None
+    packets: Optional[List[SignalPacket]] = None
+    total: int = 0
+
+
+class CreateIssueFromSignalRequest(BaseModel):
+    """Request to create a GitHub issue from a Signal Packet"""
+    owner: str
+    repo: str
+    additional_labels: List[str] = []
+
+
 # Resolve forward references
 FileNode.model_rebuild()
 ASTNode.model_rebuild()

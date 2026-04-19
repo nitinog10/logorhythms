@@ -283,4 +283,23 @@ export class DocuVerseClient {
       body: { owner, repo, title, body, labels },
     });
   }
+
+  // ----------------------------------------------------------
+  // Signal (Customer Voice-to-Code)
+  // ----------------------------------------------------------
+
+  listSignalPackets(repoId: string) {
+    return this.request<import('./types').SignalPacketListResponse>(`/signal/${repoId}/packets`);
+  }
+
+  getSignalPacket(repoId: string, packetId: string) {
+    return this.request<import('./types').SignalPacket>(`/signal/${repoId}/packets/${packetId}`);
+  }
+
+  createIssueFromSignal(repoId: string, packetId: string, owner: string, repo: string) {
+    return this.request<{ issue_number: number; url: string; title: string }>(
+      `/signal/${repoId}/packets/${packetId}/create-issue`,
+      { method: 'POST', body: { owner, repo, additional_labels: [] } }
+    );
+  }
 }

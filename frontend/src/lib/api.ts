@@ -765,6 +765,150 @@ export const github = {
     }),
 }
 
+// ============================================================
+// Signal (Customer Voice-to-Code)
+// ============================================================
+
+export type SignalSource = 'linear' | 'zendesk' | 'intercom' | 'manual'
+export type SignalStatus = 'pending' | 'processing' | 'completed' | 'failed'
+export type SignalIssueType = 'bug' | 'feature_request' | 'question' | 'performance' | 'ux' | 'security' | 'other'
+export type SignalUrgency = 'critical' | 'high' | 'medium' | 'low'
+
+export interface SignalCodeMatch {
+  file_path: string
+  symbol: string | null
+  confidence: number
+  snippet: string | null
+  start_line: number | null
+  end_line: number | null
+}
+
+export interface CustomerSignal {
+  id: string
+  repo_id: string
+  source: SignalSource
+  external_ticket_id: string | null
+  title: string
+  body: string
+  customer_segment: string | null
+  priority: string | null
+  status: SignalStatus
+  tags: string[]
+  created_at: string
+}
+
+export interface SignalPacket {
+  id: string
+  repo_id: string
+  signal_id: string
+  cluster_id: string | null
+  issue_type: SignalIssueType
+  business_urgency: SignalUrgency
+  duplicate_count: number
+  likely_files: string[]
+  likely_symbols: string[]
+  code_matches: SignalCodeMatch[]
+  owner_suggestions: string[]
+  fix_summary: string
+  root_cause_hypothesis: string
+  docs_update_suggestions: string[]
+  customer_response_draft: string
+  confidence_score: number
+  github_issue_url: string | null
+  github_issue_number: number | null
+  created_at: string
+  updated_at: string
+  metadata: Record<string, unknown>
+}
+
+export interface SignalCluster {
+  id: string
+  repo_id: string
+  representative_title: string
+  signal_ids: string[]
+  size: number
+  combined_urgency: SignalUrgency
+  created_at: string
+  updated_at: string
+}
+
+export interface SignalConfig {
+  repo_id: string
+  source: SignalSource
+  enabled: boolean
+  auto_create_issues: boolean
+  priority_threshold: number
+}
+
+export interface SignalPacketResponse {
+  success: boolean
+  message?: string | null
+  packet?: SignalPacket | null
+  packets?: SignalPacket[] | null
+  total: number
+}
+
+export const signal = {
+  importSignal: (
+    repoId: string,
+    title: string,
+    body: string,
+    options: {
+      source?: SignalSource
+      externalTicketId?: string
+      customerSegment?: string
+      priority?: string
+      tags?: string[]
+    } = {}
+  ) =>
+    request<SignalPacketResponse>('/signal/import', {
+      method: 'POST',
+      body: {
+        repo_id: repoId,
+        title,
+        body,
+        source: options.source || 'manual',
+        external_ticket_id: options.externalTicketId,
+        customer_segment: options.customerSegment,
+        priority: options.priority,
+        tags: options.tags || [],
+      },
+    }),
+
+  getConfig: (repoId: string) =>
+    request<SignalConfig>(`/signal/${repoId}/config`),
+
+  updateConfig: (repoId: string, config: Partial<SignalConfig>) =>
+    request<{ success: boolean; message: string }>(`/signal/${repoId}/config`, {
+      method: 'PUT',
+      body: config,
+    }),
+
+  listPackets: (repoId: string) =>
+    request<SignalPacketResponse>(`/signal/${repoId}/packets`),
+
+  getPacket: (repoId: string, packetId: string) =>
+    request<SignalPacket>(`/signal/${repoId}/packets/${packetId}`),
+
+  listClusters: (repoId: string) =>
+    request<SignalCluster[]>(`/signal/${repoId}/clusters`),
+
+  listSignals: (repoId: string) =>
+    request<CustomerSignal[]>(`/signal/${repoId}/signals`),
+
+  createIssueFromPacket: (
+    repoId: string,
+    packetId: string,
+    owner: string,
+    repo: string,
+    additionalLabels: string[] = []
+  ) =>
+    request<CreateIssueResponse>(`/signal/${repoId}/packets/${packetId}/create-issue`, {
+      method: 'POST',
+      body: { owner, repo, additional_labels: additionalLabels },
+    }),
+}
+
 // Export all APIs
 export const api = {
   auth,
@@ -776,6 +920,7 @@ export const api = {
   documentation,
   upload,
   provenance,
+  signal,
 }
 
 export default api

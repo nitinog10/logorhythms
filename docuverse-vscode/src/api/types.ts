@@ -262,3 +262,48 @@ export interface ImplementFixResponse {
   merged: boolean;
   readme_updated: boolean;
 }
+
+// ============================================================
+// Signal (Customer Voice-to-Code)
+// ============================================================
+
+export type SignalIssueType = 'bug' | 'feature_request' | 'question' | 'performance' | 'ux' | 'security' | 'other';
+export type SignalUrgency = 'critical' | 'high' | 'medium' | 'low';
+
+export interface SignalCodeMatch {
+  file_path: string;
+  symbol: string | null;
+  confidence: number;
+  snippet: string | null;
+  start_line: number | null;
+  end_line: number | null;
+}
+
+export interface SignalPacket {
+  id: string;
+  repo_id: string;
+  signal_id: string;
+  cluster_id: string | null;
+  issue_type: SignalIssueType;
+  business_urgency: SignalUrgency;
+  duplicate_count: number;
+  likely_files: string[];
+  likely_symbols: string[];
+  code_matches: SignalCodeMatch[];
+  owner_suggestions: string[];
+  fix_summary: string;
+  root_cause_hypothesis: string;
+  docs_update_suggestions: string[];
+  customer_response_draft: string;
+  confidence_score: number;
+  github_issue_url: string | null;
+  github_issue_number: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SignalPacketListResponse {
+  success: boolean;
+  packets: SignalPacket[] | null;
+  total: number;
+}
