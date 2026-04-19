@@ -145,27 +145,37 @@ const DEMO_SEGMENTS = [
 ]
 
 const DEMO_FILE_TREE = [
-  { id: 'src', name: 'src', isDir: true, children: [
-    { id: 'src/auth', name: 'auth', isDir: true, children: [
-      { id: 'src/auth/auth_service.py', name: 'auth_service.py', isDir: false, lang: 'python' },
-      { id: 'src/auth/middleware.py', name: 'middleware.py', isDir: false, lang: 'python' },
-      { id: 'src/auth/permissions.py', name: 'permissions.py', isDir: false, lang: 'python' },
-    ]},
-    { id: 'src/models', name: 'models', isDir: true, children: [
-      { id: 'src/models/user.py', name: 'user.py', isDir: false, lang: 'python' },
-      { id: 'src/models/session.py', name: 'session.py', isDir: false, lang: 'python' },
-    ]},
-    { id: 'src/routes', name: 'routes', isDir: true, children: [
-      { id: 'src/routes/auth_routes.py', name: 'auth_routes.py', isDir: false, lang: 'python' },
-      { id: 'src/routes/user_routes.py', name: 'user_routes.py', isDir: false, lang: 'python' },
-    ]},
-    { id: 'src/main.py', name: 'main.py', isDir: false, lang: 'python' },
-    { id: 'src/config.py', name: 'config.py', isDir: false, lang: 'python' },
-  ]},
-  { id: 'tests', name: 'tests', isDir: true, children: [
-    { id: 'tests/test_auth.py', name: 'test_auth.py', isDir: false, lang: 'python' },
-    { id: 'tests/test_routes.py', name: 'test_routes.py', isDir: false, lang: 'python' },
-  ]},
+  {
+    id: 'src', name: 'src', isDir: true, children: [
+      {
+        id: 'src/auth', name: 'auth', isDir: true, children: [
+          { id: 'src/auth/auth_service.py', name: 'auth_service.py', isDir: false, lang: 'python' },
+          { id: 'src/auth/middleware.py', name: 'middleware.py', isDir: false, lang: 'python' },
+          { id: 'src/auth/permissions.py', name: 'permissions.py', isDir: false, lang: 'python' },
+        ]
+      },
+      {
+        id: 'src/models', name: 'models', isDir: true, children: [
+          { id: 'src/models/user.py', name: 'user.py', isDir: false, lang: 'python' },
+          { id: 'src/models/session.py', name: 'session.py', isDir: false, lang: 'python' },
+        ]
+      },
+      {
+        id: 'src/routes', name: 'routes', isDir: true, children: [
+          { id: 'src/routes/auth_routes.py', name: 'auth_routes.py', isDir: false, lang: 'python' },
+          { id: 'src/routes/user_routes.py', name: 'user_routes.py', isDir: false, lang: 'python' },
+        ]
+      },
+      { id: 'src/main.py', name: 'main.py', isDir: false, lang: 'python' },
+      { id: 'src/config.py', name: 'config.py', isDir: false, lang: 'python' },
+    ]
+  },
+  {
+    id: 'tests', name: 'tests', isDir: true, children: [
+      { id: 'tests/test_auth.py', name: 'test_auth.py', isDir: false, lang: 'python' },
+      { id: 'tests/test_routes.py', name: 'test_routes.py', isDir: false, lang: 'python' },
+    ]
+  },
   { id: 'requirements.txt', name: 'requirements.txt', isDir: false, lang: 'text' },
   { id: 'README.md', name: 'README.md', isDir: false, lang: 'markdown' },
 ]
