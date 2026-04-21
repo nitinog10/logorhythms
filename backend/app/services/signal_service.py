@@ -127,21 +127,23 @@ async def _generate_packet_analysis(
     code_matches: List[SignalCodeMatch],
 ) -> Dict[str, Any]:
     """Use Bedrock Nova Pro to generate the fix packet analysis."""
-    code_areas = "\n".join(
-        f"  - {m.file_path}" + (f" ({m.symbol})" if m.symbol else "")
-        for m in code_matches[:5]
-    ) or "  (no code matches found)"
-
-    prompt = _PACKET_PROMPT_TEMPLATE.format(
-        title=title,
-        body=body[:2000],
-        issue_type=classification.get("issue_type", "unknown"),
-        urgency=classification.get("urgency", "medium"),
-        domain_area=classification.get("domain_area", "unknown"),
-        code_areas=code_areas,
-    )
-
     try:
+        code_areas = "\n".join(
+            f"  - {m.file_path}" + (f" ({m.symbol})" if m.symbol else "")
+            for m in code_matches[:5]
+        ) or "  (no code matches found)"
+
+        # Build prompt inside try block — code_areas and user input
+        # may contain curly braces which would crash str.format()
+        prompt = _PACKET_PROMPT_TEMPLATE.format(
+            title=title,
+            body=body[:2000],
+            issue_type=classification.get("issue_type", "unknown"),
+            urgency=classification.get("urgency", "medium"),
+            domain_area=classification.get("domain_area", "unknown"),
+            code_areas=code_areas,
+        )
+
         raw = await call_nova_pro(
             prompt,
             max_tokens=1024,
@@ -199,41 +201,81 @@ async def process_signal(
     """
     logger.info("Processing signal %s: %s", signal.id, signal.title)
 
-    # Step 1: Classify
-    classification = await classify_ticket(signal.title, signal.body)
-    issue_type = SignalIssueType(classification["issue_type"])
-    urgency = SignalUrgency(classification["urgency"])
+    # Default fallback values so a packet is always returned
+    issue_type = SignalIssueType.OTHER
+    urgency = SignalUrgency.MEDIUM
+    classification: Dict[str, Any] = {}
+    code_matches: List[SignalCodeMatch] = []
+    analysis: Dict[str, Any] = {}
+    cluster: Optional[SignalCluster] = None
+    is_new_cluster = True
 
-    logger.info(
-        "Signal %s classified: type=%s, urgency=%s",
-        signal.id, issue_type.value, urgency.value,
-    )
+    try:
+        # Step 1: Classify
+        classification = await classify_ticket(signal.title, signal.body)
+        try:
+            issue_type = SignalIssueType(classification["issue_type"])
+        except (ValueError, KeyError):
+            issue_type = SignalIssueType.OTHER
+        try:
+            urgency = SignalUrgency(classification["urgency"])
+        except (ValueError, KeyError):
+            urgency = SignalUrgency.MEDIUM
 
-    # Step 2: Cluster
-    cluster, is_new_cluster = find_or_create_cluster(
-        signal=signal,
-        signal_urgency=urgency,
-        existing_clusters=existing_clusters,
-        existing_signals=existing_signals,
-    )
+        logger.info(
+            "Signal %s classified: type=%s, urgency=%s",
+            signal.id, issue_type.value, urgency.value,
+        )
+    except Exception as e:
+        logger.error("Signal %s classification failed: %s", signal.id, e, exc_info=True)
 
-    # Step 3: Map to code
-    code_matches = await _map_signal_to_code(
-        repo_id=signal.repo_id,
-        title=signal.title,
-        body=signal.body,
-        technical_terms=classification.get("technical_terms", []),
-    )
+    try:
+        # Step 2: Cluster
+        cluster, is_new_cluster = find_or_create_cluster(
+            signal=signal,
+            signal_urgency=urgency,
+            existing_clusters=existing_clusters,
+            existing_signals=existing_signals,
+        )
+    except Exception as e:
+        logger.error("Signal %s clustering failed: %s", signal.id, e, exc_info=True)
 
-    # Step 4: Generate packet analysis
-    analysis = await _generate_packet_analysis(
-        title=signal.title,
-        body=signal.body,
-        classification=classification,
-        code_matches=code_matches,
-    )
+    # Create a default cluster if clustering failed
+    if cluster is None:
+        cluster = SignalCluster(
+            id=f"cluster_{uuid.uuid4().hex[:12]}",
+            repo_id=signal.repo_id,
+            representative_title=signal.title,
+            signal_ids=[signal.id],
+            size=1,
+            combined_urgency=urgency,
+        )
+        is_new_cluster = True
 
-    # Build the Signal Packet
+    try:
+        # Step 3: Map to code
+        code_matches = await _map_signal_to_code(
+            repo_id=signal.repo_id,
+            title=signal.title,
+            body=signal.body,
+            technical_terms=classification.get("technical_terms", []),
+        )
+    except Exception as e:
+        logger.error("Signal %s code mapping failed: %s", signal.id, e, exc_info=True)
+
+    try:
+        # Step 4: Generate packet analysis
+        analysis = await _generate_packet_analysis(
+            title=signal.title,
+            body=signal.body,
+            classification=classification,
+            code_matches=code_matches,
+        )
+    except Exception as e:
+        logger.error("Signal %s packet generation failed: %s", signal.id, e, exc_info=True)
+        analysis = _fallback_analysis(signal.title)
+
+    # Build the Signal Packet — always succeeds
     packet = SignalPacket(
         id=f"pkt_{uuid.uuid4().hex[:12]}",
         repo_id=signal.repo_id,

@@ -45,9 +45,11 @@ async def classify_ticket(title: str, body: str) -> Dict[str, Any]:
     Returns:
         Dict with keys: issue_type, urgency, technical_terms, domain_area, summary
     """
-    prompt = _CLASSIFY_PROMPT_TEMPLATE.format(title=title, body=body[:3000])
-
     try:
+        # Build prompt inside try block — user input may contain curly braces
+        # which would crash str.format()
+        prompt = _CLASSIFY_PROMPT_TEMPLATE.format(title=title, body=body[:3000])
+
         raw = await call_nova_lite(
             prompt,
             max_tokens=512,

@@ -88,7 +88,15 @@ async def import_signal(
     authorization: str = Header(None),
 ):
     """Import a customer ticket/signal manually and generate a Signal Packet."""
+    import logging
+    logger = logging.getLogger(__name__)
+
     user, repo = await _guard_repo(body.repo_id, authorization)
+
+    logger.info(
+        "Signal import started: repo=%s, title=%s",
+        body.repo_id, body.title[:80],
+    )
 
     # Create the normalized signal
     signal = CustomerSignal(
@@ -140,6 +148,11 @@ async def import_signal(
         save_signal_packet(json.loads(packet.model_dump_json()))
         save_signal_cluster(json.loads(cluster.model_dump_json()))
 
+        logger.info(
+            "Signal import completed: signal=%s, packet=%s",
+            signal.id, packet.id,
+        )
+
         return SignalPacketResponse(
             success=True,
             message="Signal processed successfully",
@@ -148,6 +161,10 @@ async def import_signal(
         )
 
     except Exception as e:
+        logger.error(
+            "Signal import failed: signal=%s, error=%s",
+            signal.id, str(e), exc_info=True,
+        )
         signal.status = SignalStatus.FAILED
         save_customer_signal(json.loads(signal.model_dump_json()))
         raise HTTPException(
