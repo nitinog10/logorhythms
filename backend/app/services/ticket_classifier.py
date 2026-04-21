@@ -46,9 +46,10 @@ async def classify_ticket(title: str, body: str) -> Dict[str, Any]:
         Dict with keys: issue_type, urgency, technical_terms, domain_area, summary
     """
     try:
-        # Build prompt inside try block — user input may contain curly braces
-        # which would crash str.format()
-        prompt = _CLASSIFY_PROMPT_TEMPLATE.format(title=title, body=body[:3000])
+        # Sanitize user input — curly braces crash str.format()
+        safe_title = title.replace("{", "{{").replace("}", "}}")
+        safe_body = body[:3000].replace("{", "{{").replace("}", "}}")
+        prompt = _CLASSIFY_PROMPT_TEMPLATE.format(title=safe_title, body=safe_body)
 
         raw = await call_nova_lite(
             prompt,
@@ -67,14 +68,19 @@ async def classify_ticket(title: str, body: str) -> Dict[str, Any]:
 
         result = json.loads(text)
 
-        # Validate and normalize enums
-        issue_type = result.get("issue_type", "other").lower()
+        # Ensure we got a dict — Bedrock may return a plain string or list
+        if not isinstance(result, dict):
+            logger.warning("Classifier returned non-dict JSON: %s", type(result))
+            return _fallback_classify(title, body)
+
+        # Validate and normalize enums — use `or` to handle null values
+        issue_type = (result.get("issue_type") or "other").lower()
         try:
             SignalIssueType(issue_type)
         except ValueError:
             issue_type = "other"
 
-        urgency = result.get("urgency", "medium").lower()
+        urgency = (result.get("urgency") or "medium").lower()
         try:
             SignalUrgency(urgency)
         except ValueError:
@@ -83,9 +89,9 @@ async def classify_ticket(title: str, body: str) -> Dict[str, Any]:
         return {
             "issue_type": issue_type,
             "urgency": urgency,
-            "technical_terms": result.get("technical_terms", []),
-            "domain_area": result.get("domain_area", "unknown"),
-            "summary": result.get("summary", title),
+            "technical_terms": result.get("technical_terms") or [],
+            "domain_area": result.get("domain_area") or "unknown",
+            "summary": result.get("summary") or title,
         }
 
     except json.JSONDecodeError as e:

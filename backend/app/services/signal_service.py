@@ -133,14 +133,16 @@ async def _generate_packet_analysis(
             for m in code_matches[:5]
         ) or "  (no code matches found)"
 
-        # Build prompt inside try block — code_areas and user input
-        # may contain curly braces which would crash str.format()
+        # Sanitize user input — curly braces crash str.format()
+        safe_title = title.replace("{", "{{").replace("}", "}}")
+        safe_body = body[:2000].replace("{", "{{").replace("}", "}}")
+
         prompt = _PACKET_PROMPT_TEMPLATE.format(
-            title=title,
-            body=body[:2000],
-            issue_type=classification.get("issue_type", "unknown"),
-            urgency=classification.get("urgency", "medium"),
-            domain_area=classification.get("domain_area", "unknown"),
+            title=safe_title,
+            body=safe_body,
+            issue_type=classification.get("issue_type") or "unknown",
+            urgency=classification.get("urgency") or "medium",
+            domain_area=classification.get("domain_area") or "unknown",
             code_areas=code_areas,
         )
 
@@ -158,7 +160,12 @@ async def _generate_packet_analysis(
             text = text[:-3]
         text = text.strip()
 
-        return json.loads(text)
+        result = json.loads(text)
+        # Ensure we got a dict — Bedrock may return a plain string or list
+        if not isinstance(result, dict):
+            logger.warning("Bedrock returned non-dict JSON: %s", type(result))
+            return _fallback_analysis(title)
+        return result
 
     except json.JSONDecodeError as e:
         logger.warning("Failed to parse packet analysis JSON: %s", e)
@@ -258,7 +265,7 @@ async def process_signal(
             repo_id=signal.repo_id,
             title=signal.title,
             body=signal.body,
-            technical_terms=classification.get("technical_terms", []),
+            technical_terms=classification.get("technical_terms") or [],
         )
     except Exception as e:
         logger.error("Signal %s code mapping failed: %s", signal.id, e, exc_info=True)
@@ -275,28 +282,55 @@ async def process_signal(
         logger.error("Signal %s packet generation failed: %s", signal.id, e, exc_info=True)
         analysis = _fallback_analysis(signal.title)
 
-    # Build the Signal Packet — always succeeds
-    packet = SignalPacket(
-        id=f"pkt_{uuid.uuid4().hex[:12]}",
-        repo_id=signal.repo_id,
-        signal_id=signal.id,
-        cluster_id=cluster.id,
-        issue_type=issue_type,
-        business_urgency=urgency,
-        duplicate_count=cluster.size,
-        likely_files=[m.file_path for m in code_matches],
-        likely_symbols=[m.symbol for m in code_matches if m.symbol],
-        code_matches=code_matches,
-        owner_suggestions=analysis.get("owner_suggestions", []),
-        fix_summary=analysis.get("fix_summary", ""),
-        root_cause_hypothesis=analysis.get("root_cause_hypothesis", ""),
-        docs_update_suggestions=analysis.get("docs_update_suggestions", []),
-        customer_response_draft=analysis.get("customer_response_draft", ""),
-        confidence_score=_compute_confidence(classification, code_matches),
-        metadata={
-            "classification": classification,
-        },
-    )
+    # Ensure analysis is a dict (Bedrock may return unexpected types)
+    if not isinstance(analysis, dict):
+        analysis = _fallback_analysis(signal.title)
+
+    # Build the Signal Packet — use `or` guards to handle None values
+    # from Bedrock JSON (dict.get returns None, not default, when key
+    # exists with a null value)
+    try:
+        packet = SignalPacket(
+            id=f"pkt_{uuid.uuid4().hex[:12]}",
+            repo_id=signal.repo_id,
+            signal_id=signal.id,
+            cluster_id=cluster.id,
+            issue_type=issue_type,
+            business_urgency=urgency,
+            duplicate_count=cluster.size,
+            likely_files=[m.file_path for m in code_matches],
+            likely_symbols=[m.symbol for m in code_matches if m.symbol],
+            code_matches=code_matches,
+            owner_suggestions=analysis.get("owner_suggestions") or [],
+            fix_summary=analysis.get("fix_summary") or "",
+            root_cause_hypothesis=analysis.get("root_cause_hypothesis") or "",
+            docs_update_suggestions=analysis.get("docs_update_suggestions") or [],
+            customer_response_draft=analysis.get("customer_response_draft") or "",
+            confidence_score=_compute_confidence(classification, code_matches),
+            metadata={
+                "classification": classification,
+            },
+        )
+    except Exception as e:
+        logger.error(
+            "Signal %s packet construction failed: %s", signal.id, e, exc_info=True,
+        )
+        # Last-resort fallback packet with minimal data
+        fb = _fallback_analysis(signal.title)
+        packet = SignalPacket(
+            id=f"pkt_{uuid.uuid4().hex[:12]}",
+            repo_id=signal.repo_id,
+            signal_id=signal.id,
+            cluster_id=cluster.id,
+            issue_type=issue_type,
+            business_urgency=urgency,
+            duplicate_count=cluster.size,
+            owner_suggestions=fb["owner_suggestions"],
+            fix_summary=fb["fix_summary"],
+            root_cause_hypothesis=fb["root_cause_hypothesis"],
+            customer_response_draft=fb["customer_response_draft"],
+            confidence_score=0.3,
+        )
 
     logger.info(
         "Signal Packet %s created (confidence=%.2f, code_matches=%d, cluster_size=%d)",
@@ -311,25 +345,31 @@ def _compute_confidence(
     code_matches: List[SignalCodeMatch],
 ) -> float:
     """Compute an overall confidence score for the packet."""
-    score = 0.3  # Base confidence
+    try:
+        score = 0.3  # Base confidence
 
-    # Boost for code matches
-    if code_matches:
-        match_boost = min(len(code_matches) / 5, 0.3)  # Up to 0.3
-        score += match_boost
+        # Boost for code matches
+        if code_matches:
+            match_boost = min(len(code_matches) / 5, 0.3)  # Up to 0.3
+            score += match_boost
 
-    # Boost for having technical terms (better classification)
-    terms = classification.get("technical_terms", [])
-    if terms:
-        term_boost = min(len(terms) / 5, 0.2)  # Up to 0.2
-        score += term_boost
+        # Boost for having technical terms (better classification)
+        # Use `or []` because dict.get returns None (not default) when
+        # the key exists with a null value from Bedrock JSON.
+        terms = classification.get("technical_terms") or []
+        if terms and isinstance(terms, list):
+            term_boost = min(len(terms) / 5, 0.2)  # Up to 0.2
+            score += term_boost
 
-    # Boost for non-"other" classification
-    if classification.get("issue_type") != "other":
-        score += 0.1
+        # Boost for non-"other" classification
+        if classification.get("issue_type") != "other":
+            score += 0.1
 
-    # Boost for domain area identified
-    if classification.get("domain_area", "unknown") != "unknown":
-        score += 0.1
+        # Boost for domain area identified
+        domain = classification.get("domain_area") or "unknown"
+        if domain != "unknown":
+            score += 0.1
 
-    return min(score, 1.0)
+        return min(score, 1.0)
+    except Exception:
+        return 0.3
