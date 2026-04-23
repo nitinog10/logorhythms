@@ -6,7 +6,9 @@ Generate and retrieve structured MNC-standard documentation for repositories.
 
 import logging
 import os
+from typing import Optional
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Header
+from pydantic import BaseModel
 
 from app.services.documentation_generator import DocumentationGenerator
 from app.services.persistence import save_documentation_cache, load_documentation_cache
@@ -19,7 +21,7 @@ router = APIRouter()
 # Load persisted documentation cache (survives server restarts)
 docs_cache: dict = load_documentation_cache()
 docs_generating: dict = {}     # repo_id -> bool
-print(f"📂 Loaded documentation cache for {len(docs_cache)} repositories from disk")
+print(f"[docs] Loaded documentation cache for {len(docs_cache)} repositories from disk")
 
 doc_generator = DocumentationGenerator()
 
@@ -142,3 +144,57 @@ async def get_file_docs(repo_id: str, path: str, authorization: str = Header(Non
         return {"status": "ready", "data": result}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
+
+
+# ------------------------------------------------------------------
+# Concise README generation (for GitHub push)
+# ------------------------------------------------------------------
+
+class GenerateReadmeRequest(BaseModel):
+    """Request body for concise README generation."""
+    project_description: Optional[str] = ""
+
+
+@router.post("/{repo_id}/readme")
+async def generate_readme(
+    repo_id: str,
+    body: GenerateReadmeRequest = GenerateReadmeRequest(),
+    authorization: str = Header(None),
+):
+    """
+    Generate a concise, developer-grade README from cached documentation.
+
+    Optionally accepts a project_description to tailor the README to the
+    user's intent (e.g. "This is an ERP for manufacturing").
+
+    Returns {"status": "ready", "readme": "<markdown string>"}.
+    """
+    user = await get_current_user(authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    repo = repositories_db.get(repo_id)
+    if not repo or repo.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Repository not found")
+
+    # Require existing docs cache — don't generate full docs from scratch here
+    if repo_id not in docs_cache:
+        raise HTTPException(
+            status_code=400,
+            detail="Documentation has not been generated yet. Please generate documentation first.",
+        )
+
+    cached_docs = docs_cache[repo_id]
+    repo_name = repo.full_name or repo.name
+
+    try:
+        readme_md = await doc_generator.generate_readme(
+            docs=cached_docs,
+            repo_name=repo_name,
+            project_description=body.project_description or "",
+        )
+        return {"status": "ready", "readme": readme_md}
+    except Exception as exc:
+        logger.error("README generation failed for %s: %s", repo_id, exc)
+        raise HTTPException(status_code=500, detail=f"README generation failed: {exc}")
+

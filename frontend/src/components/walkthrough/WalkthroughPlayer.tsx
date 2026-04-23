@@ -48,12 +48,20 @@ interface AudioSegmentTiming {
   endTime: number
 }
 
+export interface CodeSelection {
+  code: string
+  startLine: number
+  endLine: number
+}
+
 interface WalkthroughPlayerProps {
   code: string
   script: WalkthroughScript
   filePath: string
   isPlaying: boolean
   onPlayingChange: (playing: boolean) => void
+  onCodeSelect?: (selection: CodeSelection | null) => void
+  selectedLines?: { start: number; end: number } | null
 }
 
 // ---------------------------------------------------------------------------
@@ -83,6 +91,8 @@ export function WalkthroughPlayer({
   filePath,
   isPlaying,
   onPlayingChange,
+  onCodeSelect,
+  selectedLines,
 }: WalkthroughPlayerProps) {
   // ── State ──────────────────────────────────────────────────────────────
   const [currentSegmentIndex, setCurrentSegmentIndex] = useState(0)
@@ -339,6 +349,35 @@ export function WalkthroughPlayer({
     }
   }, [currentSegment])
 
+  // ── Text selection handler ("Explain this code") ─────────────────────
+  const handleCodeMouseUp = useCallback(() => {
+    if (!onCodeSelect) return
+    const sel = window.getSelection()
+    if (!sel || sel.isCollapsed || !sel.toString().trim()) {
+      return // don't clear selection on empty click — let parent decide
+    }
+
+    const selectedText = sel.toString().trim()
+    if (selectedText.length < 3) return // too short
+
+    // Find line range from selection anchor/focus
+    const container = codeContainerRef.current
+    if (!container) return
+
+    const range = sel.getRangeAt(0)
+    // Walk up to find line elements and extract line numbers
+    const startEl = range.startContainer.parentElement?.closest('[data-line]')
+    const endEl = range.endContainer.parentElement?.closest('[data-line]')
+    const startLine = startEl ? parseInt(startEl.getAttribute('data-line') || '1', 10) : 1
+    const endLine = endEl ? parseInt(endEl.getAttribute('data-line') || '1', 10) : startLine
+
+    onCodeSelect({
+      code: selectedText,
+      startLine: Math.min(startLine, endLine),
+      endLine: Math.max(startLine, endLine),
+    })
+  }, [onCodeSelect])
+
   // ── Handlers ────────────────────────────────────────────────────────────
   const handleSkipBack = () => {
     if (currentSegmentIndex > 0) {
@@ -442,28 +481,36 @@ export function WalkthroughPlayer({
       <div
         ref={codeContainerRef}
         className="flex-1 overflow-auto bg-dv-bg p-6 font-mono text-sm"
+        onMouseUp={handleCodeMouseUp}
       >
         {lines.map((line, index) => {
           const lineNumber = index + 1
           const highlightLines = currentSegment?.highlightLines ?? []
           const isHighlighted = highlightLines.includes(lineNumber)
           const isInRange = currentSegment ? (lineNumber >= currentSegment.startLine && lineNumber <= currentSegment.endLine) : false
+          const isSelected = selectedLines
+            ? lineNumber >= selectedLines.start && lineNumber <= selectedLines.end
+            : false
 
           return (
             <motion.div
               key={index}
+              data-line={lineNumber}
               className={clsx(
                 'flex py-0.5 px-2 -mx-2 rounded-[4px] transition-colors duration-300',
-                isHighlighted && 'bg-dv-accent/12 border-l-2 border-dv-accent',
-                isInRange && !isHighlighted && 'bg-dv-accent/5'
+                isSelected && 'bg-amber-400/12 border-l-2 border-amber-400',
+                !isSelected && isHighlighted && 'bg-dv-accent/12 border-l-2 border-dv-accent',
+                !isSelected && isInRange && !isHighlighted && 'bg-dv-accent/5'
               )}
               initial={false}
               animate={{
-                backgroundColor: isHighlighted
-                  ? 'rgba(10, 132, 255, 0.12)'
-                  : isInRange
-                    ? 'rgba(10, 132, 255, 0.05)'
-                    : 'transparent',
+                backgroundColor: isSelected
+                  ? 'rgba(251, 191, 36, 0.12)'
+                  : isHighlighted
+                    ? 'rgba(10, 132, 255, 0.12)'
+                    : isInRange
+                      ? 'rgba(10, 132, 255, 0.05)'
+                      : 'transparent',
               }}
             >
               <span className="w-12 text-right pr-4 text-dv-text-muted select-none flex-shrink-0">
@@ -471,7 +518,7 @@ export function WalkthroughPlayer({
               </span>
               <span className={clsx(
                 'flex-1 whitespace-pre',
-                isHighlighted ? 'text-dv-text' : 'text-dv-text-muted'
+                isSelected ? 'text-amber-200' : isHighlighted ? 'text-dv-text' : 'text-dv-text-muted'
               )}>
                 <SyntaxHighlight code={line} />
               </span>

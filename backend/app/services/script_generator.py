@@ -237,20 +237,42 @@ class ScriptGeneratorService:
         view_mode: ViewMode,
         order: int,
     ) -> ScriptSegment:
-        """Generate the closing conclusion segment"""
-        if view_mode == ViewMode.DEVELOPER:
-            text = (
-                f"That concludes our walkthrough of {os.path.basename(file_path)}. "
-                f"We've covered the main components and their implementations. "
-                f"For deeper understanding, consider exploring the related files and dependencies."
-            )
+        """Generate the closing conclusion segment using LLM"""
+        node_names = [n.name for n in ast_nodes if n.type in [NodeType.FUNCTION, NodeType.CLASS, NodeType.METHOD]][:10]
+        components_str = ", ".join(node_names) if node_names else "various components"
+
+        if self._mock:
+            if view_mode == ViewMode.DEVELOPER:
+                text = (
+                    f"So that's {os.path.basename(file_path)}. "
+                    f"The key takeaway is how {components_str} work together. "
+                    f"If you're going to modify this file, pay attention to the dependencies."
+                )
+            else:
+                text = (
+                    f"To recap, this file handles critical functionality. "
+                    f"Understanding it helps you see how this part of the system serves the business."
+                )
         else:
-            text = (
-                f"To summarize, this file is a crucial part of the system. "
-                f"Understanding its role helps in grasping the overall architecture. "
-                f"Feel free to explore related modules for a complete picture."
-            )
-        
+            if view_mode == ViewMode.DEVELOPER:
+                prompt = f"""You are a Staff Engineer wrapping up a code walkthrough.
+
+File: {os.path.basename(file_path)}
+Key components covered: {components_str}
+
+Generate a brief closing narration (2-3 sentences) that:
+- Summarizes the key architectural insight or design pattern in this file
+- Mentions one thing to be careful about if someone modifies this code
+- Sounds like a real engineer giving practical advice, not a textbook summary
+- Never say 'That concludes our walkthrough' or 'Feel free to explore'"""
+            else:
+                prompt = f"""Wrap up a high-level overview of {os.path.basename(file_path)} for a product manager.
+
+Key components: {components_str}
+
+Generate 2 sentences summarizing the business value and what to remember about this file. Be direct."""
+            text = await self._call_llm(prompt)
+
         # Point conclusion to end of file instead of line 1
         last_node = ast_nodes[-1] if ast_nodes else None
         conclusion_start = last_node.end_line if last_node else 1
@@ -295,10 +317,14 @@ class ScriptGeneratorService:
         view_mode: ViewMode,
     ) -> str:
         """Generate prompt for file overview"""
+        num_funcs = len([n for n in ast_nodes if n.type == NodeType.FUNCTION])
+        num_classes = len([n for n in ast_nodes if n.type == NodeType.CLASS])
+        num_imports = len([n for n in ast_nodes if n.type == NodeType.IMPORT])
+
         if view_mode == ViewMode.DEVELOPER:
-            return f"""You are a senior software engineer explaining code to a fellow developer.
-            
-Generate an engaging opening narration for a code walkthrough video of this file.
+            return f"""You are a Staff Engineer with 15 years of experience. You're doing a code walkthrough with a fellow developer — the kind where you sit down, pull up a file, and explain why things are the way they are.
+
+Generate the opening narration for a walkthrough of this file.
 
 File: {file_path}
 Code Preview:
@@ -306,29 +332,27 @@ Code Preview:
 {content_preview}
 ```
 
-Code Structure:
-- Functions: {len([n for n in ast_nodes if n.type == NodeType.FUNCTION])}
-- Classes: {len([n for n in ast_nodes if n.type == NodeType.CLASS])}
-- Imports: {len([n for n in ast_nodes if n.type == NodeType.IMPORT])}
+Structure: {num_funcs} functions, {num_classes} classes, {num_imports} imports.
 
-Requirements:
-- Be conversational and engaging
-- Mention the file name and its apparent purpose
-- Preview what the viewer will learn
-- Keep it to 2-3 sentences
-- Focus on technical aspects"""
+Rules:
+- Sound like a real engineer talking, not a textbook. Be practical and slightly opinionated.
+- Immediately explain WHAT this file is responsible for and WHY it exists in the project.
+- If you can infer the architectural role (e.g. "this is the auth middleware", "this is the data access layer"), say it.
+- Mention one interesting design decision or trade-off you notice in the code preview.
+- Keep it to 2-4 sentences. No filler. No "Let's dive in", no "In this file we will explore".
+- Speak as if the viewer already knows how to code — don't explain basic syntax."""
         else:
-            return f"""You are explaining code to a business stakeholder or manager.
+            return f"""You are explaining code to a product manager who is smart but non-technical.
 
-Generate an opening narration for a high-level code overview of this file.
+Generate an opening narration for a high-level overview of this file.
 
 File: {file_path}
 
-Requirements:
-- Use non-technical language
-- Focus on what the code DOES, not HOW
-- Explain business value
-- Keep it to 2-3 sentences"""
+Rules:
+- Use clear, non-technical language. Avoid jargon.
+- Focus on what this file DOES for the user/business, not how it works internally.
+- Frame it in terms of user-facing features or system capabilities.
+- Keep it to 2-3 sentences. Be direct."""
     
     def _get_node_prompt(
         self,
@@ -337,30 +361,34 @@ Requirements:
         view_mode: ViewMode,
     ) -> str:
         """Generate prompt for a specific code node"""
+        params_info = f"Parameters: {', '.join(node.parameters)}" if node.parameters else "No parameters."
+
         if view_mode == ViewMode.DEVELOPER:
-            return f"""You are a senior software engineer explaining code.
+            return f"""You are a Staff Engineer walking a developer through a codebase. Explain this {node.type.value} like you're pair-programming.
 
-Explain this {node.type.value} named '{node.name}':
-
+Code:
 ```
 {code[:1500]}
 ```
 
-Requirements:
-- Explain what it does and how
-- Mention parameters/inputs if applicable: {node.parameters}
-- Note any important implementation details
-- Keep it to 3-4 sentences
-- Be technically accurate"""
+{params_info}
+
+Rules:
+- First sentence: what this {node.type.value} does in plain terms. No "This function is responsible for…" — just say what it does.
+- Then explain WHY it's written this way. What problem does it solve? What would break without it?
+- If there's a non-obvious design choice (e.g. error handling strategy, data transformation, caching, concurrency), call it out. Say "they did X because Y" or "notice how they avoid Z".
+- If you spot a potential edge case, gotcha, or performance concern, mention it briefly.
+- Keep it to 3-5 sentences. Be technically precise but conversational.
+- Never say "Let's look at", "Now we see", or "This code is responsible for"."""
         else:
-            return f"""Explain this code component to a business stakeholder:
+            return f"""Explain this code component to a product manager:
 
 Component: {node.name} ({node.type.value})
 
-Requirements:
-- Use simple, non-technical language
-- Focus on business purpose
-- Keep it to 2 sentences"""
+Rules:
+- Use plain language. No jargon.
+- Explain what this does for the end user or the system, not how it works.
+- Keep it to 2 sentences. Be specific — name the feature or capability it enables."""
     
     async def _call_llm(self, prompt: str, use_pro: bool = False) -> str:
         """Call Bedrock Nova model to generate text."""

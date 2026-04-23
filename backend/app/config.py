@@ -20,8 +20,8 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://postgres:password@localhost:5432/docuverse"
     
     # GitHub OAuth
-    github_client_id: str = ""
-    github_client_secret: str = ""
+    github_client_id: str = "Ov23lipAHJ0el64psJc9"
+    github_client_secret: str = "cd309ef803b76fb9b37c3c42d6999132871578f3"
     github_redirect_uri: str = "http://localhost:3000/api/auth/callback/github"
     
     # OpenAI

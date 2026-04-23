@@ -115,6 +115,97 @@ class DocumentationGenerator:
             return {"path": file_path, "sections": [], "summary": "Could not parse file."}
         return doc
 
+    async def generate_readme(
+        self, docs: Dict[str, Any], repo_name: str, project_description: str = ""
+    ) -> str:
+        """
+        Generate a concise, developer-grade README from existing docs.
+
+        Instead of dumping every file's documentation, this produces the kind
+        of README a developer would actually write: project intro, features,
+        tech stack, getting started, brief structure, and contributing guide.
+        """
+        # Build condensed context from the full docs for the LLM
+        overview = docs.get("overview", "")[:2000]
+        architecture = docs.get("architecture", "")[:1500]
+        dependencies = docs.get("dependencies", "")[:1500]
+        folder_tree = docs.get("folder_tree", "")[:2000]
+
+        file_summaries = "\n".join(
+            f"- `{d['path']}`: {d['summary'][:100]}"
+            for d in docs.get("files", [])[:30]
+        )
+
+        context_block = ""
+        if project_description.strip():
+            context_block = (
+                f"\n**Project Description (from the developer):**\n"
+                f"{project_description.strip()}\n"
+            )
+
+        prompt = f"""You are a senior developer writing a README.md for your open-source project.
+Write a clean, concise, professional README — the kind you'd actually put on GitHub.
+
+Repository name: **{repo_name}**
+{context_block}
+Here is context about the project (from auto-generated documentation):
+
+**Overview:**
+{overview}
+
+**Architecture (condensed):**
+{architecture[:800]}
+
+**Key files:**
+{file_summaries}
+
+**Folder structure:**
+```
+{folder_tree[:1200]}
+```
+
+**Dependencies:**
+{dependencies[:800]}
+
+---
+
+Write the README with these sections (skip any that don't apply):
+1. **Title** — repo name as H1, with a one-line tagline underneath
+2. **About** — 2-3 sentences max on what this project does and why it exists
+3. **Features** — bullet list of key features (5-8 items)
+4. **Tech Stack** — brief list of languages, frameworks, and major libraries
+5. **Getting Started** — prerequisites, installation steps, and how to run
+6. **Project Structure** — brief overview of the main directories (NOT the full tree, just the important top-level folders with one-line descriptions)
+7. **Contributing** — short paragraph inviting contributions
+8. **License** — one line (default to MIT if unknown)
+
+Rules:
+- Be concise. Real developers don't write essays in READMEs.
+- Use practical, actionable language ("Run `npm install`" not "You should install the dependencies").
+- Use code blocks for commands.
+- Do NOT include per-file documentation. That's too verbose for a README.
+- Do NOT use filler phrases like "This project is designed to..." — just say what it does.
+- Output ONLY the markdown. No preamble, no commentary.
+- If the developer provided a project description, use it to inform the tone and focus of the README."""
+
+        system = "You are a documentation engineer. Output only clean markdown."
+
+        try:
+            result = await call_nova_pro(
+                prompt, max_tokens=3000, temperature=0.3, system_prompt=system
+            )
+            return result.strip()
+        except Exception as exc:
+            logger.warning("Nova Pro readme failed (%s), falling back to Nova Lite", exc)
+            try:
+                result = await call_nova_lite(
+                    prompt, max_tokens=3000, temperature=0.3, system_prompt=system
+                )
+                return result.strip()
+            except Exception as exc2:
+                logger.error("README generation failed: %s", exc2)
+                return f"# {repo_name}\n\nREADME generation failed: {exc2}"
+
     # ------------------------------------------------------------------
     # Tree walker
     # ------------------------------------------------------------------

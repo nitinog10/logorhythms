@@ -617,6 +617,12 @@ export const documentation = {
     request<{ status: string; data: FileDocumentation }>(
       `/documentation/${repoId}/file?path=${encodeURIComponent(filePath)}`
     ),
+
+  generateReadme: (repoId: string, projectDescription: string = '') =>
+    request<{ status: string; readme: string }>(`/documentation/${repoId}/readme`, {
+      method: 'POST',
+      body: { project_description: projectDescription },
+    }),
 }
 
 // ============================================================
@@ -909,6 +915,68 @@ export const signal = {
     }),
 }
 
+// ============================================================
+// Inline Code Explanation
+// ============================================================
+
+export interface InlineExplainResponse {
+  what: string
+  why: string
+  how: string
+  summary: string
+}
+
+export interface FollowupResponse {
+  answer: string
+}
+
+export interface ConversationMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+export const explain = {
+  inline: (
+    repositoryId: string,
+    filePath: string,
+    selectedCode: string,
+    startLine: number,
+    endLine: number,
+    fullFileContent: string = ''
+  ) =>
+    request<InlineExplainResponse>('/explain/inline', {
+      method: 'POST',
+      body: {
+        repository_id: repositoryId,
+        file_path: filePath,
+        selected_code: selectedCode,
+        start_line: startLine,
+        end_line: endLine,
+        full_file_content: fullFileContent,
+      },
+    }),
+
+  followup: (
+    repositoryId: string,
+    filePath: string,
+    selectedCode: string,
+    question: string,
+    conversationHistory: ConversationMessage[] = [],
+    fullFileContent: string = ''
+  ) =>
+    request<FollowupResponse>('/explain/followup', {
+      method: 'POST',
+      body: {
+        repository_id: repositoryId,
+        file_path: filePath,
+        selected_code: selectedCode,
+        question,
+        conversation_history: conversationHistory,
+        full_file_content: fullFileContent,
+      },
+    }),
+}
+
 // Export all APIs
 export const api = {
   auth,
@@ -921,6 +989,7 @@ export const api = {
   upload,
   provenance,
   signal,
+  explain,
 }
 
 export default api

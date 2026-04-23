@@ -3,10 +3,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { WalkthroughPlayer } from '@/components/walkthrough/WalkthroughPlayer'
-import { FileExplorer } from '@/components/walkthrough/FileExplorer'
+import { FileExplorer, isCodeFile } from '@/components/walkthrough/FileExplorer'
 import { DiagramPanel } from '@/components/walkthrough/DiagramPanel'
 import { SandboxPanel } from '@/components/walkthrough/SandboxPanel'
 import { ImpactPanel } from '@/components/walkthrough/ImpactPanel'
+import { InlineExplainPanel } from '@/components/walkthrough/InlineExplainPanel'
+import type { CodeSelection } from '@/components/walkthrough/WalkthroughPlayer'
 import {
   ArrowLeft,
   Layers,
@@ -58,6 +60,13 @@ export default function WalkthroughPage({ params }: { params: { id: string } }) 
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [expandedPanel, setExpandedPanel] = useState<'diagram' | 'sandbox' | null>(null)
+
+  // Inline explain state
+  const [codeSelection, setCodeSelection] = useState<CodeSelection | null>(null)
+  const [selectedLines, setSelectedLines] = useState<{ start: number; end: number } | null>(null)
+
+  // Check if selected file is eligible for walkthroughs
+  const selectedFileIsCode = selectedFile ? isCodeFile(selectedFile.split('/').pop() || '') : false
 
   // Fetch repo & file tree on mount
   useEffect(() => {
@@ -119,8 +128,26 @@ export default function WalkthroughPage({ params }: { params: { id: string } }) 
     return () => { cancelled = true }
   }, [selectedFile, params.id])
 
+  // Clear inline explain when file changes
+  useEffect(() => {
+    setCodeSelection(null)
+    setSelectedLines(null)
+  }, [selectedFile])
+
+  const handleCodeSelect = useCallback((selection: CodeSelection | null) => {
+    setCodeSelection(selection)
+    if (selection) {
+      setSelectedLines({ start: selection.startLine, end: selection.endLine })
+    }
+  }, [])
+
+  const handleCloseExplain = useCallback(() => {
+    setCodeSelection(null)
+    setSelectedLines(null)
+  }, [])
+
   const handleGenerate = useCallback(async () => {
-    if (!selectedFile) return
+    if (!selectedFile || !selectedFileIsCode) return
     setIsGenerating(true)
     setIsPlaying(false)
     try {
@@ -138,7 +165,7 @@ export default function WalkthroughPage({ params }: { params: { id: string } }) 
     } finally {
       setIsGenerating(false)
     }
-  }, [selectedFile, params.id])
+  }, [selectedFile, selectedFileIsCode, params.id])
 
   // Map WalkthroughScript (snake_case) to the camelCase shape WalkthroughPlayer expects
   const playerScript = script
@@ -271,7 +298,7 @@ export default function WalkthroughPage({ params }: { params: { id: string } }) 
             </motion.div>
 
             {/* Walkthrough player or generate prompt */}
-            <div className="flex-1 overflow-hidden relative">
+            <div className={clsx('overflow-hidden relative', codeSelection ? 'w-[60%]' : 'flex-1')}>
               {isLoadingCode ? (
                 <div className="h-full flex items-center justify-center">
                   <Loader2 className="w-5 h-5 text-dv-accent animate-spin mr-3" />
@@ -286,14 +313,25 @@ export default function WalkthroughPage({ params }: { params: { id: string } }) 
                       <Sparkles className="w-7 h-7 text-purple-400" />
                     </div>
                     <h2 className="text-[22px] font-bold tracking-[-0.02em] mb-2 text-center text-[var(--text-primary)]">Generate a Walkthrough</h2>
-                    <p className="text-[14px] text-[var(--text-secondary)] text-center max-w-md mb-8 leading-relaxed">
-                      AI will analyze <span className="text-[var(--text-primary)] font-semibold">{selectedFile.split('/').pop()}</span> and create
-                      a narrated, step-by-step code walkthrough with voice.
-                    </p>
+                    {!selectedFileIsCode ? (
+                      <>
+                        <p className="text-[14px] text-amber-400/90 text-center max-w-md mb-4 leading-relaxed">
+                          ⚠️ Walkthroughs are only available for source code files.
+                        </p>
+                        <p className="text-[12px] text-[var(--text-muted)] text-center max-w-md mb-8">
+                          <span className="font-mono text-[var(--text-secondary)]">{selectedFile.split('/').pop()}</span> is a config/doc file. Select a code file (.py, .ts, .js, etc.) from the file explorer.
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-[14px] text-[var(--text-secondary)] text-center max-w-md mb-8 leading-relaxed">
+                        AI will analyze <span className="text-[var(--text-primary)] font-semibold">{selectedFile.split('/').pop()}</span> and create
+                        a narrated, step-by-step code walkthrough with voice.
+                      </p>
+                    )}
                     <div className="flex justify-center">
                       <button
                         onClick={handleGenerate}
-                        disabled={isGenerating || !selectedFile}
+                        disabled={isGenerating || !selectedFile || !selectedFileIsCode}
                         className="inline-flex items-center gap-2.5 bg-white text-black font-semibold text-[14px] px-7 py-3 rounded-full hover:shadow-[0_0_30px_rgba(168,85,247,0.3)] active:scale-[0.97] transition-all duration-500 disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         {isGenerating ? (
@@ -309,7 +347,7 @@ export default function WalkthroughPage({ params }: { params: { id: string } }) 
                         )}
                       </button>
                     </div>
-                    {codeContent && (
+                    {codeContent && selectedFileIsCode && (
                       <p className="text-[11px] text-[var(--text-muted)] mt-5 text-center font-mono">
                         {codeContent.split('\n').length} lines · {selectedFile.split('.').pop()?.toUpperCase()}
                       </p>
@@ -323,9 +361,32 @@ export default function WalkthroughPage({ params }: { params: { id: string } }) 
                   filePath={selectedFile}
                   isPlaying={isPlaying}
                   onPlayingChange={setIsPlaying}
+                  onCodeSelect={handleCodeSelect}
+                  selectedLines={selectedLines}
                 />
               )}
             </div>
+
+            {/* Inline Explain Panel */}
+            <AnimatePresence>
+              {codeSelection && (
+                <motion.div
+                  className="w-[40%] overflow-hidden flex-shrink-0"
+                  initial={{ width: 0, opacity: 0 }}
+                  animate={{ width: '40%', opacity: 1 }}
+                  exit={{ width: 0, opacity: 0 }}
+                  transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+                >
+                  <InlineExplainPanel
+                    repositoryId={params.id}
+                    filePath={selectedFile}
+                    selection={codeSelection}
+                    fullFileContent={codeContent}
+                    onClose={handleCloseExplain}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </>
         )}
       </div>

@@ -733,6 +733,50 @@ class CreateIssueFromSignalRequest(BaseModel):
     additional_labels: List[str] = []
 
 
+# ============================================================
+# Inline Code Explanation Models
+# ============================================================
+
+
+class ConversationMessage(BaseModel):
+    """Single message in a follow-up conversation"""
+    role: str  # "user" or "assistant"
+    content: str
+
+
+class InlineExplainRequest(BaseModel):
+    """Request to explain a selected code snippet inline"""
+    repository_id: str
+    file_path: str
+    selected_code: str
+    start_line: int
+    end_line: int
+    full_file_content: str = ""
+
+
+class InlineExplainResponse(BaseModel):
+    """Response with structured inline explanation"""
+    what: str  # What the code does
+    why: str  # Why it exists
+    how: str  # How it fits into the project
+    summary: str = ""  # One-liner summary
+
+
+class FollowupRequest(BaseModel):
+    """Request for a follow-up question about selected code"""
+    repository_id: str
+    file_path: str
+    selected_code: str
+    conversation_history: List[ConversationMessage] = []
+    question: str
+    full_file_content: str = ""
+
+
+class FollowupResponse(BaseModel):
+    """Response to a follow-up question"""
+    answer: str
+
+
 # Resolve forward references
 FileNode.model_rebuild()
-ASTNode.model_rebuild()
+ASTNode.model_rebuild()

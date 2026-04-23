@@ -37,6 +37,28 @@ const languageIcons: Record<string, string> = {
   rust: '🦀',
 }
 
+// Extensions that are NOT eligible for walkthroughs (config/doc/asset files)
+const NON_CODE_EXTENSIONS = new Set([
+  '.md', '.txt', '.rst', '.json', '.yaml', '.yml', '.toml', '.cfg',
+  '.ini', '.csv', '.xml', '.env', '.gitignore', '.editorconfig',
+  '.lock', '.svg', '.png', '.jpg', '.jpeg', '.gif', '.ico', '.webp',
+  '.woff', '.woff2', '.ttf', '.eot', '.map', '.log',
+])
+const NON_CODE_FILENAMES = new Set([
+  'readme.md', 'license', 'license.md', 'license.txt',
+  'changelog.md', 'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml',
+  '.prettierrc', '.eslintrc', 'tsconfig.json', 'jsconfig.json',
+  'dockerfile', 'makefile', 'procfile', '.dockerignore', '.gitattributes',
+])
+
+export function isCodeFile(name: string): boolean {
+  const lower = name.toLowerCase()
+  if (NON_CODE_FILENAMES.has(lower)) return false
+  const ext = lower.slice(lower.lastIndexOf('.'))
+  if (NON_CODE_EXTENSIONS.has(ext)) return false
+  return true
+}
+
 export function FileExplorer({ files, selectedFile, onSelectFile }: FileExplorerProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['src', 'src_auth']))
@@ -185,9 +207,11 @@ function FileTreeNode({
       onClick={() => onSelectFile(node.path)}
       className={clsx(
         'w-full flex items-center gap-2 py-1.5 px-2 rounded-[8px] transition-all text-left active:scale-[0.98]',
-        isSelected ? 'bg-dv-accent/10 text-dv-accent' : 'hover:bg-[var(--glass-4)]'
+        isSelected ? 'bg-dv-accent/10 text-dv-accent' : 'hover:bg-[var(--glass-4)]',
+        !isCodeFile(node.name) && !isSelected && 'opacity-40'
       )}
       style={{ paddingLeft: paddingLeft + 18 }}
+      title={!isCodeFile(node.name) ? 'Not eligible for walkthrough' : undefined}
     >
       <span className="ios-caption1">
         {node.language && languageIcons[node.language] ? (
@@ -197,6 +221,9 @@ function FileTreeNode({
         )}
       </span>
       <span className="ios-caption1 truncate">{node.name}</span>
+      {!isCodeFile(node.name) && (
+        <span className="ml-auto text-[9px] text-dv-text-muted bg-[var(--glass-4)] px-1.5 py-0.5 rounded">doc</span>
+      )}
     </button>
   )
 }

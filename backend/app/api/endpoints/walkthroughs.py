@@ -38,7 +38,7 @@ audio_walkthroughs_db: dict[str, AudioWalkthrough] = load_audio_walkthroughs()
 audio_bytes_store: dict[str, bytes] = load_audio_bytes()
 audio_failed: dict[str, str] = {}  # walkthrough_id → error message
 audio_generating: set[str] = set()  # walkthrough IDs currently being generated
-print(f"📂 Loaded {len(walkthroughs_db)} walkthroughs, {len(audio_walkthroughs_db)} audio records from disk")
+print(f"[walkthroughs] Loaded {len(walkthroughs_db)} walkthroughs, {len(audio_walkthroughs_db)} audio records from disk")
 
 
 @router.post("/generate", response_model=WalkthroughScript)
@@ -91,6 +91,39 @@ async def generate_walkthrough(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
     
+    # ── Smart file filtering: reject low-value files ─────────────────
+    _BLOCKED_EXTENSIONS = {
+        ".md", ".txt", ".rst", ".json", ".yaml", ".yml", ".toml", ".cfg",
+        ".ini", ".csv", ".xml", ".env", ".gitignore", ".editorconfig",
+        ".lock", ".svg", ".png", ".jpg", ".jpeg", ".gif", ".ico", ".webp",
+        ".woff", ".woff2", ".ttf", ".eot", ".map", ".min.js", ".min.css",
+        ".log", ".pid", ".DS_Store",
+    }
+    _BLOCKED_FILENAMES = {
+        "readme.md", "readme.txt", "readme.rst", "readme",
+        "license", "license.md", "license.txt",
+        "changelog.md", "changelog.txt", "changelog",
+        "contributing.md", "code_of_conduct.md",
+        "package-lock.json", "yarn.lock", "pnpm-lock.yaml",
+        "composer.lock", "gemfile.lock", "poetry.lock",
+        ".prettierrc", ".prettierrc.json", ".prettierrc.yaml",
+        ".eslintrc", ".eslintrc.json", ".eslintrc.js",
+        "tsconfig.json", "jsconfig.json",
+        ".babelrc", ".babelrc.json",
+        ".dockerignore", ".gitattributes",
+        "makefile", "dockerfile", "procfile",
+    }
+
+    file_basename = os.path.basename(safe_path).lower()
+    _, file_ext = os.path.splitext(file_basename)
+
+    if file_ext in _BLOCKED_EXTENSIONS or file_basename in _BLOCKED_FILENAMES:
+        raise HTTPException(
+            status_code=400,
+            detail="Walkthroughs are only generated for source code files. "
+                   f"'{os.path.basename(safe_path)}' is a config/doc/asset file and not eligible.",
+        )
+
     # Parse file to get structure
     parser = ParserService()
     language = parser.detect_language(safe_path)

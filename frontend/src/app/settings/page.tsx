@@ -25,8 +25,6 @@ import GradientMesh from '@/components/landing/GradientMesh'
 
 const ease = [0.23, 1, 0.32, 1] as const
 
-
-
 const fontSizeOptions: { id: FontSize; label: string; desc: string }[] = [
   { id: 'small', label: 'Small', desc: 'Compact interface' },
   { id: 'default', label: 'Default', desc: 'Standard sizing' },

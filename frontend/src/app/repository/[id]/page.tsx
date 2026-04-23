@@ -88,7 +88,7 @@ export default function RepositoryPage({ params }: { params: { id: string } }) {
           fetchFiles()
           clearInterval(interval)
         }
-      } catch {}
+      } catch { }
     }, 5000)
     return () => clearInterval(interval)
   }, [repo, params.id, fetchFiles])
@@ -318,21 +318,19 @@ export default function RepositoryPage({ params }: { params: { id: string } }) {
             <div className="inline-flex items-center bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl p-0.5">
               <button
                 onClick={() => setActiveTab('files')}
-                className={`px-4 py-2 rounded-[10px] text-[13px] font-semibold flex items-center gap-1.5 transition-all ${
-                  activeTab === 'files'
+                className={`px-4 py-2 rounded-[10px] text-[13px] font-semibold flex items-center gap-1.5 transition-all ${activeTab === 'files'
                     ? 'bg-[var(--input-border)] text-[var(--text-primary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]'
                     : 'text-[var(--text-secondary)] hover:text-[var(--text-secondary)]'
-                }`}
+                  }`}
               >
                 <FileCode className="w-4 h-4" /> Files
               </button>
               <button
                 onClick={() => setActiveTab('documentation')}
-                className={`px-4 py-2 rounded-[10px] text-[13px] font-semibold flex items-center gap-1.5 transition-all ${
-                  activeTab === 'documentation'
+                className={`px-4 py-2 rounded-[10px] text-[13px] font-semibold flex items-center gap-1.5 transition-all ${activeTab === 'documentation'
                     ? 'bg-[var(--input-border)] text-[var(--text-primary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]'
                     : 'text-[var(--text-secondary)] hover:text-[var(--text-secondary)]'
-                }`}
+                  }`}
               >
                 <BookOpen className="w-4 h-4" /> Documentation
               </button>
@@ -381,9 +379,8 @@ export default function RepositoryPage({ params }: { params: { id: string } }) {
                         initial={{ opacity: 0, x: -8 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: i * 0.02, duration: 0.3, ease }}
-                        className={`flex items-center gap-3 px-5 py-3.5 group hover:bg-[var(--hover-bg)] transition-all ${
-                          i < flatFiles.length - 1 ? 'border-b border-[var(--text-faint)]' : ''
-                        }`}
+                        className={`flex items-center gap-3 px-5 py-3.5 group hover:bg-[var(--hover-bg)] transition-all ${i < flatFiles.length - 1 ? 'border-b border-[var(--text-faint)]' : ''
+                          }`}
                       >
                         <File className="w-4 h-4 text-[var(--text-faint)] flex-shrink-0" />
                         <div className="flex-1 min-w-0">
@@ -429,14 +426,14 @@ export default function RepositoryPage({ params }: { params: { id: string } }) {
                         <ChevronRight className="w-3.5 h-3.5 text-[var(--text-faint)] ml-auto group-hover:translate-x-0.5 group-hover:text-[var(--text-muted)] transition-all" />
                       </Link>
                     )}
-                    <Link
+                    {/* <Link
                       href={`/repository/${params.id}/signal`}
                       className="flex items-center gap-3 p-3 rounded-xl bg-[var(--hover-bg)] hover:bg-[var(--input-bg)] transition-colors group"
                     >
                       <Zap className="w-4 h-4 text-amber-400" />
                       <span className="text-[14px] text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors">Signal (Customer Voice)</span>
                       <ChevronRight className="w-3.5 h-3.5 text-[var(--text-faint)] ml-auto group-hover:translate-x-0.5 group-hover:text-[var(--text-muted)] transition-all" />
-                    </Link>
+                    </Link> */}
                     <Link
                       href={`/repository/${params.id}/walkthrough`}
                       className="flex items-center gap-3 p-3 rounded-xl bg-[var(--hover-bg)] hover:bg-[var(--input-bg)] transition-colors group"

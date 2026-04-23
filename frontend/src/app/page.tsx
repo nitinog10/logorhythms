@@ -99,11 +99,10 @@ export default function HomePage() {
     <div className="min-h-screen bg-[#050505] text-white overflow-x-hidden selection:bg-indigo-500/30">
       {/* ─── HEADER ─── */}
       <header
-        className={`fixed top-0 inset-x-0 z-50 transition-all duration-500 ${
-          headerScrolled
+        className={`fixed top-0 inset-x-0 z-50 transition-all duration-500 ${headerScrolled
             ? 'bg-[#050505]/80 backdrop-blur-2xl border-b border-white/[0.06]'
             : 'bg-transparent'
-        }`}
+          }`}
       >
         <div className="max-w-[1400px] mx-auto px-6 sm:px-10 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5 group">
@@ -484,7 +483,7 @@ export default function HomePage() {
                   accent: '#f97316',
                   tag: 'Analysis',
                 },
-                
+
               ].map((feat, i) => (
                 <motion.div
                   key={feat.title}
@@ -668,11 +667,10 @@ function CodeBlock() {
       {lines.map((l, i) => (
         <motion.div
           key={l.n}
-          className={`flex items-center rounded-md px-2 -mx-2 ${
-            l.hl
+          className={`flex items-center rounded-md px-2 -mx-2 ${l.hl
               ? 'bg-indigo-500/[0.06] border-l-2 border-indigo-500'
               : 'border-l-2 border-transparent'
-          }`}
+            }`}
           initial={{ opacity: 0, x: -8 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 1 + i * 0.07, duration: 0.4, ease }}

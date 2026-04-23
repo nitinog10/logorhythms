@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { motion, AnimatePresence, useInView } from 'framer-motion'
+import { useState, useEffect, useCallback } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import {
   FolderGit2,
@@ -55,30 +55,7 @@ const langColor: Record<string, string> = {
   Vue: '#41B883',
 }
 
-/* ── Counter hook ── */
-function useCounter(target: number, duration = 1200) {
-  const ref = useRef<HTMLSpanElement>(null)
-  const isInView = useInView(ref as any, { once: true, margin: '-40px' })
-  const [count, setCount] = useState(0)
 
-  useEffect(() => {
-    if (!isInView) return
-    let start = 0
-    const increment = target / (duration / 16)
-    const timer = setInterval(() => {
-      start += increment
-      if (start >= target) {
-        setCount(target)
-        clearInterval(timer)
-      } else {
-        setCount(Math.floor(start))
-      }
-    }, 16)
-    return () => clearInterval(timer)
-  }, [isInView, target, duration])
-
-  return { ref, count }
-}
 
 type ViewMode = 'grid' | 'list'
 type FilterMode = 'all' | 'indexed' | 'pending'
@@ -223,17 +200,7 @@ export default function RepositoriesPage() {
             </motion.p>
           </div>
 
-          {/* ── Stat cards ── */}
-          <motion.div
-            className="grid grid-cols-3 gap-5 mb-12"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease, delay: 0.3 }}
-          >
-            <StatCard label="Total" value={repos.length} icon={<FolderGit2 className="w-6 h-6" />} color="#6366f1" sub={repos.length === 1 ? 'repository' : 'repositories'} />
-            <StatCard label="Indexed" value={indexedCount} icon={<CheckCircle2 className="w-6 h-6" />} color="#30d158" sub="ready for walkthrough" />
-            <StatCard label="Pending" value={pendingCount} icon={<Clock className="w-6 h-6" />} color="#ffd60a" sub="indexing in progress" />
-          </motion.div>
+
 
           {/* ── Filter bar ── */}
           <motion.div
@@ -415,40 +382,7 @@ export default function RepositoriesPage() {
   )
 }
 
-/* ── Stat Card ── */
-function StatCard({
-  label, value, icon, color, sub,
-}: {
-  label: string; value: number; icon: React.ReactNode; color: string; sub: string
-}) {
-  const { ref, count } = useCounter(value)
 
-  return (
-    <TiltCard className="rounded-2xl">
-      <div className="relative rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] p-6 overflow-hidden">
-        <div
-          className="absolute top-0 right-0 w-[150px] h-[150px] rounded-full blur-[60px] opacity-[0.07] pointer-events-none"
-          style={{ backgroundColor: color }}
-        />
-        <div className="relative">
-          <div className="flex items-center gap-3 mb-6">
-            <div
-              className="w-11 h-11 rounded-xl flex items-center justify-center"
-              style={{ backgroundColor: `${color}12`, color, border: `1px solid ${color}20` }}
-            >
-              {icon}
-            </div>
-            <span className="text-[13px] font-medium text-[var(--text-secondary)]">{label}</span>
-          </div>
-          <p className="text-[40px] font-bold tracking-[-0.04em] tabular-nums leading-none mb-2" style={{ color }}>
-            <span ref={ref}>{count}</span>
-          </p>
-          <p className="text-[12px] text-[var(--text-muted)] font-medium tracking-wide">{sub}</p>
-        </div>
-      </div>
-    </TiltCard>
-  )
-}
 
 /* ── Grid Card ── */
 function RepoGridCard({

@@ -132,8 +132,8 @@ export default function DocumentationPanel({ repoId, fullName }: { repoId: strin
         <BookOpen className="w-10 h-10 text-dv-accent/50 mb-4" />
         <h3 className="ios-subhead font-semibold mb-2">Generate Documentation</h3>
         <p className="ios-caption1 text-dv-text-muted mb-6 max-w-md">
-          Produce structured, MNC-standard documentation for every file and folder in this
-          repository using AI-powered analysis.
+          Generate detailed, structured documentation for every file in this repository.
+          When you&apos;re ready to push to GitHub, we&apos;ll create a concise README tailored to your project.
         </p>
         {error && (
           <div className="flex items-center gap-2 ios-caption2 text-dv-error mb-4">
@@ -198,8 +198,9 @@ export default function DocumentationPanel({ repoId, fullName }: { repoId: strin
         <button
           onClick={handleExport}
           className="flex items-center gap-2 ios-caption2 font-medium px-3 py-1.5 rounded-[8px] bg-[var(--glass-6)] text-dv-text-muted hover:bg-[var(--glass-8)] transition-colors active:scale-[0.95]"
+          title="Export full detailed documentation as markdown"
         >
-          <Download className="w-3.5 h-3.5" /> Export .md
+          <Download className="w-3.5 h-3.5" /> Export Full Docs
         </button>
         {fullName && (
           <PushDocsButton repoId={repoId} fullName={fullName} docs={docs} />
