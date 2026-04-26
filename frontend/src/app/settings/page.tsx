@@ -20,8 +20,10 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { useUserStore, useUIStore, type ThemeMode, type FontSize } from '@/lib/store'
-import { auth } from '@/lib/api'
+import { auth, billing, type SubscriptionInfo } from '@/lib/api'
 import GradientMesh from '@/components/landing/GradientMesh'
+import PlanBadge from '@/components/billing/PlanBadge'
+import UsageMeter from '@/components/billing/UsageMeter'
 
 const ease = [0.23, 1, 0.32, 1] as const
 
@@ -48,6 +50,9 @@ export default function SettingsPage() {
   const reducedMotion = useUIStore((s) => s.reducedMotion)
   const setReducedMotion = useUIStore((s) => s.setReducedMotion)
 
+  const [subInfo, setSubInfo] = useState<SubscriptionInfo | null>(null)
+  const [cancelLoading, setCancelLoading] = useState(false)
+
   useEffect(() => { setMounted(true) }, [])
 
   useEffect(() => {
@@ -58,10 +63,32 @@ export default function SettingsPage() {
           username: data.username,
           email: data.email,
           avatarUrl: data.avatar_url,
+          subscriptionTier: (data as any).subscription_tier || 'free',
         })
       }).catch(() => {})
     }
   }, [token, user, setUser])
+
+  // Fetch subscription info when billing tab is active
+  useEffect(() => {
+    if (activeSection === 'billing' && token) {
+      billing.getSubscription().then(setSubInfo).catch(() => {})
+    }
+  }, [activeSection, token])
+
+  const handleCancelSubscription = async () => {
+    if (!confirm('Are you sure you want to cancel your subscription? You\'ll retain access until the end of your billing period.')) return
+    setCancelLoading(true)
+    try {
+      await billing.cancel()
+      const updated = await billing.getSubscription()
+      setSubInfo(updated)
+    } catch (err) {
+      alert('Failed to cancel subscription. Please try again.')
+    } finally {
+      setCancelLoading(false)
+    }
+  }
 
   const handleLogout = () => {
     logout()
@@ -361,50 +388,89 @@ export default function SettingsPage() {
                         <Sparkles className="w-5 h-5 text-indigo-400/30" />
                       </div>
                       <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-[20px] font-bold tracking-[-0.02em]">Free Plan</p>
-                          <p className="text-[13px] text-[var(--text-muted)] mt-1">5 walkthroughs per month</p>
+                        <div className="flex items-center gap-3">
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <p className="text-[20px] font-bold tracking-[-0.02em] capitalize">
+                                {subInfo?.tier || 'Free'} Plan
+                              </p>
+                              <PlanBadge tier={(subInfo?.tier || 'free') as any} size="md" showIcon={false} />
+                            </div>
+                            <p className="text-[13px] text-[var(--text-muted)]">
+                              {subInfo?.tier === 'free' 
+                                ? '5 walkthroughs per month · 5 repos'
+                                : subInfo?.tier === 'pro'
+                                ? '100 walkthroughs per month · Unlimited repos'
+                                : 'Unlimited everything · Team collaboration'
+                              }
+                            </p>
+                            {subInfo?.current_period_end && subInfo.tier !== 'free' && (
+                              <p className="text-[11px] text-[var(--text-muted)] mt-1">
+                                {subInfo.status === 'cancelled' ? 'Access until' : 'Renews'}: {new Date(subInfo.current_period_end).toLocaleDateString()}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                        <button className="inline-flex items-center gap-2 bg-[var(--btn-solid-bg)] text-[var(--btn-solid-text)] font-semibold text-[13px] px-5 py-2.5 rounded-full hover:shadow-[0_0_20px_var(--accent-glow)] active:scale-[0.97] transition-all duration-300">
-                          Upgrade to Pro
-                        </button>
+                        <div className="flex gap-2">
+                          {subInfo?.tier === 'free' ? (
+                            <Link
+                              href="/pricing"
+                              className="inline-flex items-center gap-2 bg-[var(--btn-solid-bg)] text-[var(--btn-solid-text)] font-semibold text-[13px] px-5 py-2.5 rounded-full hover:shadow-[0_0_20px_var(--accent-glow)] active:scale-[0.97] transition-all duration-300"
+                            >
+                              Upgrade to Pro
+                            </Link>
+                          ) : subInfo?.status !== 'cancelled' ? (
+                            <button
+                              onClick={handleCancelSubscription}
+                              disabled={cancelLoading}
+                              className="inline-flex items-center gap-2 bg-red-500/10 text-red-400 font-semibold text-[13px] px-5 py-2.5 rounded-full hover:bg-red-500/15 active:scale-[0.97] transition-all duration-300"
+                            >
+                              {cancelLoading ? 'Cancelling...' : 'Cancel Plan'}
+                            </button>
+                          ) : (
+                            <span className="inline-flex items-center gap-2 text-amber-400 font-semibold text-[13px] px-5 py-2.5">
+                              Cancelling at period end
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </SettingsCard>
 
                   <SettingsCard>
-                    <h2 className="text-[18px] font-semibold tracking-[-0.02em] mb-5">Usage</h2>
+                    <h2 className="text-[18px] font-semibold tracking-[-0.02em] mb-5">Usage This Period</h2>
 
-                    <div className="space-y-5">
-                      <div>
-                        <div className="flex justify-between mb-2">
-                          <span className="text-[14px] text-[var(--text-secondary)]">Walkthroughs</span>
-                          <span className="text-[12px] font-semibold">3 / 5</span>
-                        </div>
-                        <div className="h-2 bg-[var(--input-bg)] rounded-full overflow-hidden">
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: '60%' }}
-                            transition={{ duration: 0.8, ease: 'easeOut' }}
-                            className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="flex justify-between mb-2">
-                          <span className="text-[14px] text-[var(--text-secondary)]">Audio minutes</span>
-                          <span className="text-[12px] font-semibold">12 / 30</span>
-                        </div>
-                        <div className="h-2 bg-[var(--input-bg)] rounded-full overflow-hidden">
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: '40%' }}
-                            transition={{ duration: 0.8, ease: 'easeOut', delay: 0.1 }}
-                            className="h-full bg-gradient-to-r from-green-500 to-cyan-400 rounded-full"
-                          />
-                        </div>
-                      </div>
+                    <div className="space-y-4">
+                      <UsageMeter
+                        label="Walkthroughs"
+                        used={subInfo?.usage?.walkthroughs || 0}
+                        limit={subInfo?.limits?.walkthroughs ?? 5}
+                      />
+                      <UsageMeter
+                        label="Signal Packets"
+                        used={subInfo?.usage?.signals || 0}
+                        limit={subInfo?.limits?.signals ?? 3}
+                      />
+                      <UsageMeter
+                        label="Provenance Cards"
+                        used={subInfo?.usage?.provenance || 0}
+                        limit={subInfo?.limits?.provenance ?? 3}
+                      />
+                      <UsageMeter
+                        label="Inline Explains"
+                        used={subInfo?.usage?.explains || 0}
+                        limit={subInfo?.limits?.explains ?? 10}
+                      />
+                      <UsageMeter
+                        label="Repositories"
+                        used={subInfo?.usage?.repos || 0}
+                        limit={subInfo?.limits?.repos ?? 5}
+                      />
+                      <UsageMeter
+                        label="Diagrams"
+                        used={subInfo?.usage?.diagrams || 0}
+                        limit={subInfo?.limits?.diagrams ?? -1}
+                      />
                     </div>
                   </SettingsCard>
                 </motion.div>

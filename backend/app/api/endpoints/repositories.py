@@ -226,6 +226,24 @@ async def connect_repository(
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
+    # ── Usage limit check ──
+    from app.services.billing_service import check_usage_limit
+    from app.services.persistence import load_subscription, update_subscription_usage
+    sub = load_subscription(user.id)
+    tier = sub.get("tier", "free") if sub else "free"
+    # Count current repos for this user
+    user_repo_count = len([r for r in repositories_db.values() if r.user_id == user.id])
+    allowed, limit = check_usage_limit(tier, "repos", user_repo_count)
+    if not allowed:
+        raise HTTPException(status_code=403, detail={
+            "code": "LIMIT_EXCEEDED",
+            "feature": "repos",
+            "used": user_repo_count,
+            "limit": limit,
+            "tier": tier,
+            "upgrade_url": "/pricing",
+        })
+    
     # Fetch repository info from GitHub
     async with httpx.AsyncClient() as client:
         response = await client.get(
@@ -259,6 +277,9 @@ async def connect_repository(
     
     # Save to persistence
     save_repositories(repositories_db)
+    
+    # Increment usage counter
+    update_subscription_usage(user.id, "repos")
     
     # Clone repository in background
     background_tasks.add_task(clone_repository, repo, user.access_token)

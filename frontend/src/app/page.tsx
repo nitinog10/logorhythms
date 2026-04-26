@@ -132,6 +132,12 @@ export default function HomePage() {
               <Terminal className="w-3.5 h-3.5" />
               IDE
             </Link>
+            <Link
+              href="/pricing"
+              className="text-[13px] tracking-wide uppercase text-white/30 hover:text-white transition-colors duration-300"
+            >
+              Pricing
+            </Link>
           </nav>
 
           <div className="flex items-center gap-4">

@@ -9,11 +9,13 @@ import {
   Settings,
   ChevronLeft,
   LogOut,
+  Crown,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { clsx } from 'clsx'
 import { useUserStore } from '@/lib/store'
+import PlanBadge from '@/components/billing/PlanBadge'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -27,7 +29,8 @@ export function Sidebar() {
   const router = useRouter()
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [mounted, setMounted] = useState(false)
-  const { user, logout } = useUserStore()
+  const { user, logout, subscription } = useUserStore()
+  const currentTier = subscription?.tier || (user as any)?.subscriptionTier || 'free'
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -107,6 +110,19 @@ export function Sidebar() {
         })}
       </nav>
 
+      {/* Upgrade button for free users */}
+      {currentTier === 'free' && !isCollapsed && (
+        <div className="px-3 pb-2">
+          <Link
+            href="/pricing"
+            className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 text-indigo-400 text-[13px] font-medium hover:from-indigo-500/15 hover:to-purple-500/15 transition-all active:scale-[0.97]"
+          >
+            <Crown className="w-3.5 h-3.5" />
+            Upgrade to Pro
+          </Link>
+        </div>
+      )}
+
       {/* User section */}
       <div className="p-3 border-t border-[var(--text-faint)]">
         <div
@@ -132,7 +148,10 @@ export function Sidebar() {
               isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'
             )}
           >
-            <p className="text-[13px] font-medium text-[var(--text-primary)] truncate">{user?.username || 'Developer'}</p>
+            <p className="text-[13px] font-medium text-[var(--text-primary)] truncate flex items-center gap-2">
+              {user?.username || 'Developer'}
+              <PlanBadge tier={currentTier as 'free' | 'pro' | 'team'} />
+            </p>
             <p className="text-[11px] text-[var(--text-muted)] truncate">{user?.email || 'Connected'}</p>
           </div>
           {!isCollapsed && (

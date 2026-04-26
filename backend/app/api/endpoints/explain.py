@@ -40,6 +40,24 @@ async def explain_inline(
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
+    # ── Usage limit check ──
+    from app.services.billing_service import check_usage_limit
+    from app.services.persistence import load_subscription, update_subscription_usage
+    sub = load_subscription(user.id)
+    tier = sub.get("tier", "free") if sub else "free"
+    usage = sub.get("usage", {}) if sub else {}
+    current_count = usage.get("explains", 0)
+    allowed, limit = check_usage_limit(tier, "explains", current_count)
+    if not allowed:
+        raise HTTPException(status_code=403, detail={
+            "code": "LIMIT_EXCEEDED",
+            "feature": "explains",
+            "used": current_count,
+            "limit": limit,
+            "tier": tier,
+            "upgrade_url": "/pricing",
+        })
+
     repo = repositories_db.get(request.repository_id)
     if not repo or repo.user_id != user.id:
         raise HTTPException(status_code=404, detail="Repository not found")
@@ -71,6 +89,9 @@ Respond with EXACTLY three sections using these exact headers. No other text out
 
     # Parse sections from the response
     what, why, how = _parse_sections(raw)
+
+    # Increment usage counter
+    update_subscription_usage(user.id, "explains")
 
     return InlineExplainResponse(
         what=what,

@@ -56,6 +56,24 @@ async def generate_walkthrough(
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
+    # ── Usage limit check ──
+    from app.services.billing_service import check_usage_limit
+    from app.services.persistence import load_subscription, update_subscription_usage
+    sub = load_subscription(user.id)
+    tier = sub.get("tier", "free") if sub else "free"
+    usage = sub.get("usage", {}) if sub else {}
+    current_count = usage.get("walkthroughs", 0)
+    allowed, limit = check_usage_limit(tier, "walkthroughs", current_count)
+    if not allowed:
+        raise HTTPException(status_code=403, detail={
+            "code": "LIMIT_EXCEEDED",
+            "feature": "walkthroughs",
+            "used": current_count,
+            "limit": limit,
+            "tier": tier,
+            "upgrade_url": "/pricing",
+        })
+    
     repo = repositories_db.get(request.repository_id)
     
     if not repo or repo.user_id != user.id:
@@ -151,6 +169,9 @@ async def generate_walkthrough(
         
         walkthroughs_db[script.id] = script
         save_walkthroughs(walkthroughs_db)  # persist to disk
+        
+        # Increment usage counter
+        update_subscription_usage(user.id, "walkthroughs")
         
         # Queue audio generation in background
         background_tasks.add_task(

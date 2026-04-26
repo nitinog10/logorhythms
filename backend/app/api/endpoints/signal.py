@@ -93,6 +93,24 @@ async def import_signal(
 
     user, repo = await _guard_repo(body.repo_id, authorization)
 
+    # ── Usage limit check ──
+    from app.services.billing_service import check_usage_limit
+    from app.services.persistence import load_subscription, update_subscription_usage
+    sub = load_subscription(user.id)
+    tier = sub.get("tier", "free") if sub else "free"
+    usage = sub.get("usage", {}) if sub else {}
+    current_count = usage.get("signals", 0)
+    allowed, limit = check_usage_limit(tier, "signals", current_count)
+    if not allowed:
+        raise HTTPException(status_code=403, detail={
+            "code": "LIMIT_EXCEEDED",
+            "feature": "signals",
+            "used": current_count,
+            "limit": limit,
+            "tier": tier,
+            "upgrade_url": "/pricing",
+        })
+
     logger.info(
         "Signal import started: repo=%s, title=%s",
         body.repo_id, body.title[:80],
@@ -147,6 +165,9 @@ async def import_signal(
         # Save packet and cluster
         save_signal_packet(json.loads(packet.model_dump_json()))
         save_signal_cluster(json.loads(cluster.model_dump_json()))
+
+        # Increment usage counter
+        update_subscription_usage(user.id, "signals")
 
         logger.info(
             "Signal import completed: signal=%s, packet=%s",

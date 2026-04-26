@@ -33,14 +33,26 @@ interface User {
   username: string
   email: string | null
   avatarUrl: string | null
+  subscriptionTier?: 'free' | 'pro' | 'team'
+}
+
+interface SubscriptionState {
+  tier: 'free' | 'pro' | 'team'
+  status: string
+  usage: Record<string, number>
+  limits: Record<string, number>
+  periodEnd: string | null
+  currency: string
 }
 
 interface UserState {
   user: User | null
   token: string | null
   isAuthenticated: boolean
+  subscription: SubscriptionState | null
   setUser: (user: User | null) => void
   setToken: (token: string | null) => void
+  setSubscription: (sub: SubscriptionState | null) => void
   logout: () => void
 }
 
@@ -50,6 +62,7 @@ export const useUserStore = create<UserState>()(
       user: null,
       token: null,
       isAuthenticated: false,
+      subscription: null,
       setUser: (user) => set({ user, isAuthenticated: !!user }),
       setToken: (token) => {
         if (typeof window !== 'undefined') {
@@ -61,11 +74,12 @@ export const useUserStore = create<UserState>()(
         }
         set({ token, isAuthenticated: !!token })
       },
+      setSubscription: (subscription) => set({ subscription }),
       logout: () => {
         if (typeof window !== 'undefined') {
           localStorage.removeItem('token')
         }
-        set({ user: null, token: null, isAuthenticated: false })
+        set({ user: null, token: null, isAuthenticated: false, subscription: null })
       },
     }),
     {
@@ -73,7 +87,8 @@ export const useUserStore = create<UserState>()(
       partialize: (state) => ({ 
         token: state.token,
         user: state.user,
-        isAuthenticated: state.isAuthenticated 
+        isAuthenticated: state.isAuthenticated,
+        subscription: state.subscription,
       }),
       skipHydration: true,
       // Sync with localStorage on storage events

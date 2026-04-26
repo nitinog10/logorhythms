@@ -14,7 +14,7 @@ from jose import jwt
 
 from app.config import get_settings
 from app.models.schemas import User, UserResponse, APIResponse
-from app.services.persistence import save_users, load_users
+from app.services.persistence import save_users, load_users, save_subscription, load_subscription
 
 router = APIRouter()
 settings = get_settings()
@@ -152,6 +152,12 @@ async def github_callback(code: str, state: str):
     
     # Create or update user
     user_id = f"user_{github_user['id']}"
+    
+    # Check if existing user (preserve subscription tier)
+    existing_user = users_db.get(user_id)
+    existing_tier = existing_user.subscription_tier if existing_user else "free"
+    existing_rzp_id = existing_user.razorpay_customer_id if existing_user else None
+    
     user = User(
         id=user_id,
         github_id=github_user["id"],
@@ -159,12 +165,28 @@ async def github_callback(code: str, state: str):
         email=primary_email,
         avatar_url=github_user.get("avatar_url"),
         access_token=access_token,
+        subscription_tier=existing_tier,
+        razorpay_customer_id=existing_rzp_id,
     )
     
     users_db[user_id] = user
     
     # Save to persistence
     save_users(users_db)
+    
+    # Initialize free subscription if new user
+    if not existing_user:
+        from datetime import timezone as tz
+        sub_data = {
+            "user_id": user_id,
+            "tier": "free",
+            "currency": "INR",
+            "status": "active",
+            "usage": {"walkthroughs": 0, "signals": 0, "provenance": 0, "explains": 0, "repos": 0},
+            "created_at": datetime.now(tz.utc).isoformat(),
+            "updated_at": datetime.now(tz.utc).isoformat(),
+        }
+        save_subscription(sub_data)
     
     # Create session token with user data embedded
     session_token = create_access_token({
@@ -185,7 +207,7 @@ async def github_callback(code: str, state: str):
     )
 
 
-@router.get("/me", response_model=UserResponse)
+@router.get("/me")
 async def get_me(authorization: Opt[str] = Header(None, alias="Authorization")):
     """Get current user info"""
     user = await get_current_user(authorization)
@@ -193,11 +215,16 @@ async def get_me(authorization: Opt[str] = Header(None, alias="Authorization")):
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
+    # Get subscription info
+    sub = load_subscription(user.id)
+    tier = sub.get("tier", "free") if sub else user.subscription_tier
+    
     return UserResponse(
         id=user.id,
         username=user.username,
         email=user.email,
-        avatar_url=user.avatar_url
+        avatar_url=user.avatar_url,
+        subscription_tier=tier,
     )
 
 
@@ -228,13 +255,18 @@ async def refresh_token(authorization: Opt[str] = Header(None, alias="Authorizat
         }
     })
     
+    # Get subscription tier
+    sub = load_subscription(user.id)
+    tier = sub.get("tier", "free") if sub else user.subscription_tier
+    
     return {
         "token": new_token,
         "user": UserResponse(
             id=user.id,
             username=user.username,
             email=user.email,
-            avatar_url=user.avatar_url
+            avatar_url=user.avatar_url,
+            subscription_tier=tier,
         )
     }
 
@@ -247,13 +279,18 @@ async def verify_token(authorization: Opt[str] = Header(None, alias="Authorizati
     if not user:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
     
+    # Get subscription tier
+    sub = load_subscription(user.id)
+    tier = sub.get("tier", "free") if sub else user.subscription_tier
+    
     return {
         "valid": True,
         "user": UserResponse(
             id=user.id,
             username=user.username,
             email=user.email,
-            avatar_url=user.avatar_url
+            avatar_url=user.avatar_url,
+            subscription_tier=tier,
         )
     }
 

@@ -41,6 +41,24 @@ async def query_provenance(
     """Build or return a cached Provenance Card for a file (optional symbol)."""
     user, repo = await _guard_repo(body.repository_id, authorization)
 
+    # ── Usage limit check ──
+    from app.services.billing_service import check_usage_limit
+    from app.services.persistence import load_subscription, update_subscription_usage
+    sub = load_subscription(user.id)
+    tier = sub.get("tier", "free") if sub else "free"
+    usage = sub.get("usage", {}) if sub else {}
+    current_count = usage.get("provenance", 0)
+    allowed, limit = check_usage_limit(tier, "provenance", current_count)
+    if not allowed:
+        raise HTTPException(status_code=403, detail={
+            "code": "LIMIT_EXCEEDED",
+            "feature": "provenance",
+            "used": current_count,
+            "limit": limit,
+            "tier": tier,
+            "upgrade_url": "/pricing",
+        })
+
     if repo.source != "github":
         raise HTTPException(
             status_code=400,
@@ -70,6 +88,10 @@ async def query_provenance(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Provenance generation failed: {e}")
+
+    # Increment usage counter (only for newly generated cards, not cache hits)
+    if not from_cache:
+        update_subscription_usage(user.id, "provenance")
 
     return ProvenanceQueryResponse(success=True, card=card, from_cache=from_cache)
 

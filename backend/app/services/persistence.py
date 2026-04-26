@@ -1142,3 +1142,102 @@ def load_signal_clusters(repo_id: str) -> List[dict]:
         print(f"Error loading signal clusters: {e}")
 
     return results
+
+
+# ---------------------------------------------------------------------------
+# Subscription Persistence
+# ---------------------------------------------------------------------------
+
+_subscription_memory: Dict[str, dict] = {}
+
+
+def save_subscription(sub_data: dict) -> None:
+    """Save a subscription record to DynamoDB + in-memory cache."""
+    user_id = sub_data["user_id"]
+    _subscription_memory[user_id] = sub_data
+
+    try:
+        dynamodb = _get_dynamodb_resource()
+        table = dynamodb.Table(_table_name("subscriptions"))
+        table.put_item(Item={
+            "user_id": user_id,
+            "data_json": json.dumps(sub_data, default=str),
+            "tier": sub_data.get("tier", "free"),
+            "updated_at": sub_data.get("updated_at", datetime.now(timezone.utc).isoformat()),
+        })
+    except ClientError as e:
+        if e.response["Error"]["Code"] != "ResourceNotFoundException":
+            print(f"Error saving subscription to DynamoDB: {e}")
+    except Exception as e:
+        print(f"Error saving subscription to DynamoDB: {e}")
+
+
+def load_subscription(user_id: str) -> Optional[dict]:
+    """Load a subscription record for a user."""
+    # In-memory fast path
+    if user_id in _subscription_memory:
+        return _subscription_memory[user_id]
+
+    try:
+        dynamodb = _get_dynamodb_resource()
+        table = dynamodb.Table(_table_name("subscriptions"))
+        resp = table.get_item(Key={"user_id": user_id})
+        item = resp.get("Item")
+        if item:
+            data = json.loads(item.get("data_json", "{}"))
+            _subscription_memory[user_id] = data
+            return data
+    except ClientError as e:
+        if e.response["Error"]["Code"] != "ResourceNotFoundException":
+            print(f"Error loading subscription from DynamoDB: {e}")
+    except Exception as e:
+        print(f"Error loading subscription from DynamoDB: {e}")
+
+    return None
+
+
+def update_subscription_usage(user_id: str, feature: str, increment: int = 1) -> dict:
+    """Increment a usage counter for a user's subscription. Returns updated usage dict."""
+    sub = load_subscription(user_id)
+    if not sub:
+        # Create a default free subscription
+        sub = {
+            "user_id": user_id,
+            "tier": "free",
+            "currency": "INR",
+            "status": "active",
+            "usage": {
+                "walkthroughs": 0,
+                "signals": 0,
+                "provenance": 0,
+                "explains": 0,
+                "repos": 0,
+            },
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+    usage = sub.get("usage", {})
+    usage[feature] = usage.get(feature, 0) + increment
+    sub["usage"] = usage
+    sub["updated_at"] = datetime.now(timezone.utc).isoformat()
+    save_subscription(sub)
+    return usage
+
+
+def reset_subscription_usage(user_id: str) -> None:
+    """Reset all monthly usage counters to 0 (called at period start)."""
+    sub = load_subscription(user_id)
+    if not sub:
+        return
+
+    sub["usage"] = {
+        "walkthroughs": 0,
+        "signals": 0,
+        "provenance": 0,
+        "explains": 0,
+        "repos": 0,
+    }
+    sub["updated_at"] = datetime.now(timezone.utc).isoformat()
+    save_subscription(sub)
+

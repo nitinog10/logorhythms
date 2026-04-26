@@ -4,7 +4,7 @@ Main API Router - Combines all route modules
 
 from fastapi import APIRouter
 
-from app.api.endpoints import auth, repositories, files, walkthroughs, diagrams, sandbox, documentation, github, upload, provenance, signal, explain
+from app.api.endpoints import auth, repositories, files, walkthroughs, diagrams, sandbox, documentation, github, upload, provenance, signal, explain, billing
 
 router = APIRouter()
 
@@ -81,3 +81,8 @@ router.include_router(
     tags=["Inline Explain"]
 )
 
+router.include_router(
+    billing.router,
+    prefix="/billing",
+    tags=["Billing"]
+)

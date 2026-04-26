@@ -65,6 +65,11 @@ class Settings(BaseSettings):
     intercom_access_token: str = ""
     signal_default_priority_threshold: float = 0.5
     signal_max_cluster_distance: float = 0.3
+
+    # Razorpay Payment Gateway
+    razorpay_key_id: str = ""
+    razorpay_key_secret: str = ""
+    razorpay_webhook_secret: str = ""
     
     class Config:
         env_file = ".env"

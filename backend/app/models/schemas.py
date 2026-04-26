@@ -49,6 +49,8 @@ class User(BaseModel):
     email: Optional[str] = None
     avatar_url: Optional[str] = None
     access_token: str
+    subscription_tier: str = "free"  # free, pro, team
+    razorpay_customer_id: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -58,6 +60,7 @@ class UserResponse(BaseModel):
     username: str
     email: Optional[str] = None
     avatar_url: Optional[str] = None
+    subscription_tier: str = "free"
 
 
 # ============================================================
@@ -775,6 +778,83 @@ class FollowupRequest(BaseModel):
 class FollowupResponse(BaseModel):
     """Response to a follow-up question"""
     answer: str
+
+
+# ============================================================
+# Subscription & Billing Models
+# ============================================================
+
+
+class SubscriptionTier(str, Enum):
+    """Subscription plan tiers"""
+    FREE = "free"
+    PRO = "pro"
+    TEAM = "team"
+
+
+class UserSubscription(BaseModel):
+    """User subscription state persisted in DynamoDB"""
+    user_id: str
+    tier: SubscriptionTier = SubscriptionTier.FREE
+    currency: str = "INR"
+    razorpay_customer_id: Optional[str] = None
+    razorpay_subscription_id: Optional[str] = None
+    razorpay_plan_id: Optional[str] = None
+    current_period_start: Optional[datetime] = None
+    current_period_end: Optional[datetime] = None
+    status: str = "active"  # active, halted, cancelled, expired, created
+    usage: Dict[str, int] = Field(default_factory=lambda: {
+        "walkthroughs": 0,
+        "signals": 0,
+        "provenance": 0,
+        "explains": 0,
+        "repos": 0,
+    })
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class GeoPricingResponse(BaseModel):
+    """Geo-detected pricing information"""
+    country: str
+    country_name: str = ""
+    currency: str  # INR or USD
+    symbol: str  # ₹ or $
+    plans: Dict[str, Any]
+
+
+class CreateSubscriptionRequest(BaseModel):
+    """Request to create a Razorpay subscription"""
+    plan: str  # "pro" or "team"
+
+
+class VerifyPaymentRequest(BaseModel):
+    """Request to verify Razorpay payment after checkout"""
+    razorpay_payment_id: str
+    razorpay_order_id: str
+    razorpay_signature: str
+    plan: str = "pro"  # tier that was purchased
+
+
+class SubscriptionResponse(BaseModel):
+    """Full subscription details for frontend"""
+    tier: str
+    status: str
+    currency: str
+    current_period_end: Optional[str] = None
+    usage: Dict[str, int] = {}
+    limits: Dict[str, int] = {}
+    razorpay_subscription_id: Optional[str] = None
+
+
+class UsageLimitError(BaseModel):
+    """Returned when a user exceeds their plan limit"""
+    code: str = "LIMIT_EXCEEDED"
+    feature: str
+    used: int
+    limit: int
+    tier: str
+    upgrade_url: str = "/pricing"
 
 
 # Resolve forward references

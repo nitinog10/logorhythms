@@ -977,6 +977,79 @@ export const explain = {
     }),
 }
 
+// ============================================================
+// Billing & Subscription
+// ============================================================
+
+export interface GeoPricing {
+  country: string
+  country_name: string
+  currency: string
+  symbol: string
+  plans: {
+    currency: string
+    symbol: string
+    free: { amount: number; display: string; features: string[] }
+    pro: { amount: number; display: string; features: string[]; symbol: string }
+    team: { amount: number; display: string; features: string[]; symbol: string }
+  }
+}
+
+export interface SubscribeResponse {
+  order_id: string
+  razorpay_key_id: string
+  amount: number
+  amount_in_paise: number
+  currency: string
+  display: string
+  name: string
+  description: string
+  tier: string
+}
+
+export interface VerifyPaymentData {
+  razorpay_payment_id: string
+  razorpay_order_id: string
+  razorpay_signature: string
+  plan: string
+}
+
+export interface SubscriptionInfo {
+  tier: 'free' | 'pro' | 'team'
+  status: string
+  currency: string
+  current_period_end: string | null
+  usage: Record<string, number>
+  limits: Record<string, number>
+  razorpay_subscription_id: string | null
+}
+
+export const billing = {
+  getGeo: () => request<GeoPricing>('/billing/geo'),
+
+  getPlans: (currency: string = 'INR') =>
+    request<any>(`/billing/plans?currency=${currency}`),
+
+  subscribe: (plan: string) =>
+    request<SubscribeResponse>('/billing/subscribe', {
+      method: 'POST',
+      body: { plan },
+    }),
+
+  verify: (data: VerifyPaymentData) =>
+    request<{ success: boolean; tier: string; message: string }>('/billing/verify', {
+      method: 'POST',
+      body: data,
+    }),
+
+  getSubscription: () => request<SubscriptionInfo>('/billing/subscription'),
+
+  cancel: () =>
+    request<{ success: boolean; message: string }>('/billing/cancel', {
+      method: 'POST',
+    }),
+}
+
 // Export all APIs
 export const api = {
   auth,
@@ -990,6 +1063,7 @@ export const api = {
   provenance,
   signal,
   explain,
+  billing,
 }
 
 export default api
