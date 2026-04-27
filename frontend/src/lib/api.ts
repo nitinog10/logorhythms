@@ -6,6 +6,19 @@
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'
 
+/** Safely extract a human-readable message from FastAPI error detail (string or object). */
+function extractDetailMessage(detail: unknown, fallback: string): string {
+  if (typeof detail === 'string') return detail
+  if (detail && typeof detail === 'object') {
+    const d = detail as Record<string, any>
+    if (d.code === 'LIMIT_EXCEEDED') {
+      return `You've reached the ${d.tier || 'free'} plan limit of ${d.limit} ${d.feature || 'items'}. Please upgrade to add more.`
+    }
+    return d.message || d.error || JSON.stringify(detail)
+  }
+  return fallback
+}
+
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
   body?: any
@@ -60,7 +73,7 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
     }
 
     throw new APIError(
-      errorData.detail || 'An error occurred',
+      extractDetailMessage(errorData.detail, 'An error occurred'),
       response.status,
       errorData
     )
@@ -190,7 +203,7 @@ export const upload = {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
       throw new APIError(
-        errorData.detail || 'Upload failed',
+        extractDetailMessage(errorData.detail, 'Upload failed'),
         response.status,
         errorData
       )
@@ -719,7 +732,7 @@ export const github = {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
       throw new APIError(
-        errorData.detail || 'Failed to create repository with upload',
+        extractDetailMessage(errorData.detail, 'Failed to create repository with upload'),
         response.status,
         errorData,
       )
