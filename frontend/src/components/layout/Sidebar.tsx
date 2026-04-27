@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   FolderGit2,
   Play,
+  Zap,
   Settings,
   ChevronLeft,
   LogOut,
@@ -21,6 +22,7 @@ const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/repositories', label: 'Repositories', icon: FolderGit2 },
   { href: '/walkthroughs', label: 'Walkthroughs', icon: Play },
+  { href: '/signal', label: 'Signal', icon: Zap },
   { href: '/settings', label: 'Settings', icon: Settings },
 ]
 
