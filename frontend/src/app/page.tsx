@@ -54,8 +54,9 @@ export default function HomePage() {
       {/* ─── HEADER ─── */}
       <header className={`fixed top-0 inset-x-0 z-50 transition-all duration-500 ${headerScrolled ? 'bg-[#050505]/80 backdrop-blur-2xl border-b border-white/[0.06]' : 'bg-transparent'}`}>
         <div className="max-w-[1400px] mx-auto px-6 sm:px-10 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5 group">
+          <Link href="/" className="flex items-center gap-3 group">
             <img src="/logo.png" alt="DocuVerse" className="w-8 h-8 rounded-lg object-cover" />
+            <span className="text-[17px] font-bold text-white tracking-tight">DocuVerse</span>
           </Link>
           <nav className="hidden md:flex items-center gap-8">
             {navItems.map((item) => (
