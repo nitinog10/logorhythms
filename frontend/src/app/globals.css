@@ -86,6 +86,39 @@
     --input-border: rgba(255, 255, 255, 0.08);
     --hover-bg: rgba(255, 255, 255, 0.02);
     --accent-glow: rgba(99, 102, 241, 0.3);
+
+    /* Landing page tokens */
+    --lp-bg: #050505;
+    --lp-bg-alt: #0a0a0f;
+    --lp-text: 255, 255, 255;
+    --lp-text-heading: rgba(255, 255, 255, 0.90);
+    --lp-text-body: rgba(255, 255, 255, 0.35);
+    --lp-text-muted: rgba(255, 255, 255, 0.30);
+    --lp-text-faint: rgba(255, 255, 255, 0.20);
+    --lp-text-label: rgba(255, 255, 255, 0.40);
+    --lp-border: rgba(255, 255, 255, 0.06);
+    --lp-border-hover: rgba(255, 255, 255, 0.16);
+    --lp-border-subtle: rgba(255, 255, 255, 0.04);
+    --lp-surface: rgba(255, 255, 255, 0.04);
+    --lp-surface-hover: rgba(255, 255, 255, 0.02);
+    --lp-card: #0a0a0f;
+    --lp-card-border: rgba(255, 255, 255, 0.08);
+    --lp-streak: rgba(255, 255, 255, 0.5);
+    --lp-cta-bg: #fff;
+    --lp-cta-text: #000;
+    --lp-dot: rgba(99, 102, 241, 0.60);
+    --lp-marquee-text: rgba(255, 255, 255, 0.20);
+    --lp-scroll-border: rgba(255, 255, 255, 0.15);
+    --lp-scroll-dot: rgba(255, 255, 255, 0.30);
+    --lp-icon-hover-bg: #fff;
+    --lp-icon-hover-text: #000;
+    
+    /* Orb Tokens */
+    --lp-orb-bg: linear-gradient(135deg, #2a2a35 0%, #18181f 30%, #111118 60%, #0a0a10 100%);
+    --lp-orb-ring-1: rgba(255, 255, 255, 0.1);
+    --lp-orb-ring-2: rgba(255, 255, 255, 0.06);
+    --lp-orb-ring-3: rgba(168, 85, 247, 0.1);
+    --lp-orb-glow: rgba(99, 102, 241, 0.4);
   }
 
   /* ═══════════════════════════════════════════
@@ -165,6 +198,39 @@
     --input-border: rgba(0, 0, 0, 0.08);
     --hover-bg: rgba(0, 0, 0, 0.02);
     --accent-glow: rgba(99, 102, 241, 0.15);
+
+    /* Landing page tokens — light */
+    --lp-bg: #f5f5f7;
+    --lp-bg-alt: #eeeef0;
+    --lp-text: 0, 0, 0;
+    --lp-text-heading: rgba(0, 0, 0, 0.85);
+    --lp-text-body: rgba(0, 0, 0, 0.50);
+    --lp-text-muted: rgba(0, 0, 0, 0.35);
+    --lp-text-faint: rgba(0, 0, 0, 0.20);
+    --lp-text-label: rgba(0, 0, 0, 0.45);
+    --lp-border: rgba(0, 0, 0, 0.08);
+    --lp-border-hover: rgba(0, 0, 0, 0.16);
+    --lp-border-subtle: rgba(0, 0, 0, 0.04);
+    --lp-surface: rgba(0, 0, 0, 0.04);
+    --lp-surface-hover: rgba(0, 0, 0, 0.02);
+    --lp-card: #ffffff;
+    --lp-card-border: rgba(0, 0, 0, 0.08);
+    --lp-streak: rgba(0, 0, 0, 0.35);
+    --lp-cta-bg: #111;
+    --lp-cta-text: #fff;
+    --lp-dot: rgba(99, 102, 241, 0.50);
+    --lp-marquee-text: rgba(0, 0, 0, 0.25);
+    --lp-scroll-border: rgba(0, 0, 0, 0.15);
+    --lp-scroll-dot: rgba(0, 0, 0, 0.30);
+    --lp-icon-hover-bg: #111;
+    --lp-icon-hover-text: #fff;
+    
+    /* Orb Tokens */
+    --lp-orb-bg: linear-gradient(135deg, #f8f8fc 0%, #ececf2 30%, #dfdfe8 60%, #d0d0dc 100%);
+    --lp-orb-ring-1: rgba(0, 0, 0, 0.3);
+    --lp-orb-ring-2: rgba(0, 0, 0, 0.2);
+    --lp-orb-ring-3: rgba(168, 85, 247, 0.35);
+    --lp-orb-glow: rgba(99, 102, 241, 0.15);
   }
 
   * {

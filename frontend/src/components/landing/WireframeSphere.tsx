@@ -23,7 +23,7 @@ export default function WireframeSphere({ className = '' }: { className?: string
           {/* Base gradient — dark metallic */}
           <motion.div
             className="absolute inset-0 rounded-full"
-            style={{ background: 'linear-gradient(135deg, #2a2a35 0%, #18181f 30%, #111118 60%, #0a0a10 100%)' }}
+            style={{ background: 'var(--lp-orb-bg)' }}
             animate={{ rotate: [0, 360] }}
             transition={{ duration: 40, ease: 'linear', repeat: Infinity }}
           />
@@ -31,13 +31,13 @@ export default function WireframeSphere({ className = '' }: { className?: string
           {/* Moving color wash 1 — indigo */}
           <motion.div
             className="absolute inset-0 rounded-full opacity-70"
-            style={{ background: 'radial-gradient(circle at 30% 30%, rgba(99,102,241,0.4), transparent 60%)' }}
+            style={{ background: 'radial-gradient(circle at 30% 30%, var(--lp-orb-glow), transparent 60%)' }}
             animate={{
               background: [
-                'radial-gradient(circle at 30% 30%, rgba(99,102,241,0.4), transparent 60%)',
+                'radial-gradient(circle at 30% 30%, var(--lp-orb-glow), transparent 60%)',
                 'radial-gradient(circle at 70% 60%, rgba(168,85,247,0.4), transparent 60%)',
-                'radial-gradient(circle at 40% 70%, rgba(99,102,241,0.3), transparent 60%)',
-                'radial-gradient(circle at 30% 30%, rgba(99,102,241,0.4), transparent 60%)',
+                'radial-gradient(circle at 40% 70%, var(--lp-orb-glow), transparent 60%)',
+                'radial-gradient(circle at 30% 30%, var(--lp-orb-glow), transparent 60%)',
               ],
             }}
             transition={{ duration: 10, ease: 'easeInOut', repeat: Infinity }}
@@ -107,7 +107,7 @@ export default function WireframeSphere({ className = '' }: { className?: string
                 height: `${scale * 100}%`,
                 left: `${(1 - scale) * 50}%`,
                 top: `${(1 - scale) * 50}%`,
-                border: `1px solid rgba(255,255,255,${0.04 + i * 0.02})`,
+                border: '1px solid var(--lp-border-subtle)',
               }}
               animate={{ rotate: i % 2 === 0 ? 360 : -360 }}
               transition={{ duration: 50 + i * 15, ease: 'linear', repeat: Infinity }}
@@ -123,7 +123,7 @@ export default function WireframeSphere({ className = '' }: { className?: string
             height: '125%',
             left: '-12.5%',
             top: '-12.5%',
-            border: '1px solid rgba(255,255,255,0.1)',
+            border: '1px solid var(--lp-orb-ring-1)',
             transformStyle: 'preserve-3d',
           }}
           animate={{ rotateX: [65, 72, 65], rotateY: [0, 360] }}
@@ -138,7 +138,7 @@ export default function WireframeSphere({ className = '' }: { className?: string
             height: '145%',
             left: '-22.5%',
             top: '-22.5%',
-            border: '1px solid rgba(255,255,255,0.06)',
+            border: '1px solid var(--lp-orb-ring-2)',
             transformStyle: 'preserve-3d',
           }}
           animate={{ rotateX: [50, 58, 50], rotateY: [0, -360] }}
@@ -153,7 +153,7 @@ export default function WireframeSphere({ className = '' }: { className?: string
             height: '110%',
             left: '-5%',
             top: '-5%',
-            border: '1px solid rgba(168,85,247,0.1)',
+            border: '1px solid var(--lp-orb-ring-3)',
             transformStyle: 'preserve-3d',
           }}
           animate={{ rotateX: [75, 80, 75], rotateY: [0, 360] }}
