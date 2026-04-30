@@ -131,15 +131,32 @@ async def verify_payment(
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
+    print(f"💳 Payment verification for user {user.username} (id={user.id})")
+    print(f"   order_id={body.razorpay_order_id}")
+    print(f"   payment_id={body.razorpay_payment_id}")
+    print(f"   plan={body.plan}")
+    print(f"   signature={body.razorpay_signature[:20]}...")
+
     # Verify order payment signature
-    is_valid = verify_razorpay_signature(
-        payment_id=body.razorpay_payment_id,
-        order_id=body.razorpay_order_id,
-        signature=body.razorpay_signature,
-    )
+    try:
+        is_valid = verify_razorpay_signature(
+            payment_id=body.razorpay_payment_id,
+            order_id=body.razorpay_order_id,
+            signature=body.razorpay_signature,
+        )
+    except Exception as e:
+        print(f"❌ Signature verification exception: {e}")
+        is_valid = False
 
     if not is_valid:
-        raise HTTPException(status_code=400, detail="Payment verification failed — invalid signature.")
+        print(f"❌ Signature verification FAILED for order {body.razorpay_order_id}")
+        print(f"   Using key_id: {settings.razorpay_key_id}")
+        raise HTTPException(
+            status_code=400,
+            detail="Payment verification failed — invalid signature. This can happen if the server was restarted between order creation and payment. Please try again.",
+        )
+
+    print(f"✅ Signature verified for order {body.razorpay_order_id}")
 
     # Determine tier from request
     tier = body.plan.lower() if body.plan else "pro"
@@ -176,6 +193,7 @@ async def verify_payment(
         "updated_at": now.isoformat(),
     }
     save_subscription(sub_data)
+    print(f"✅ Subscription saved: user={user.id}, tier={tier}, status=active")
 
     # Update user model
     user.subscription_tier = tier
@@ -184,6 +202,7 @@ async def verify_payment(
     from app.api.endpoints.auth import users_db
     users_db[user.id] = user
     save_users(users_db)
+    print(f"✅ User tier updated: {user.username} → {tier}")
 
     return {
         "success": True,
