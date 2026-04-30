@@ -132,7 +132,7 @@ export default function SignalHubPage() {
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
       return (
-        pkt.summary.toLowerCase().includes(q) ||
+        (pkt.fix_summary || '').toLowerCase().includes(q) ||
         pkt.repoName.toLowerCase().includes(q) ||
         (pkt.root_cause_hypothesis || '').toLowerCase().includes(q)
       )
@@ -361,7 +361,7 @@ export default function SignalHubPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <h4 className="text-[15px] font-semibold tracking-[-0.01em] text-[var(--text-primary)] line-clamp-1 mb-1">
-                            {pkt.summary}
+                            {pkt.fix_summary || 'Signal Packet'}
                           </h4>
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wider uppercase ${
