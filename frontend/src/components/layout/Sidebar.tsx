@@ -64,7 +64,7 @@ export function Sidebar() {
               isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'
             )}
           >
-            Docu<span className="text-indigo-400">Verse</span>
+            Docu<span className="text-dv-accent">Verse</span>
           </span>
         </Link>
       </div>
@@ -82,20 +82,20 @@ export function Sidebar() {
               className={clsx(
                 'flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 group/item relative active:scale-[0.98]',
                 isActive
-                  ? 'bg-indigo-500/10 text-indigo-400'
+                  ? 'bg-dv-accent/10 text-dv-accent'
                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)]'
               )}
             >
               {isActive && (
                 <motion.div
                   layoutId="sidebar-active"
-                  className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-indigo-500"
+                  className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-dv-accent"
                   transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                 />
               )}
               <div className={clsx(
                 'w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors',
-                isActive ? 'bg-indigo-500/15' : 'bg-[var(--input-bg)]'
+                isActive ? 'bg-dv-accent/15' : 'bg-[var(--input-bg)]'
               )}>
                 <Icon className="w-[15px] h-[15px]" />
               </div>
@@ -117,7 +117,7 @@ export function Sidebar() {
         <div className="px-3 pb-2">
           <Link
             href="/pricing"
-            className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 text-indigo-400 text-[13px] font-medium hover:from-indigo-500/15 hover:to-purple-500/15 transition-all active:scale-[0.97]"
+            className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-dv-accent/10 border border-dv-accent/20 text-dv-accent text-[13px] font-medium hover:bg-dv-accent/15 transition-all active:scale-[0.97]"
           >
             <Crown className="w-3.5 h-3.5" />
             Upgrade to Pro
@@ -140,7 +140,7 @@ export function Sidebar() {
               className="w-8 h-8 rounded-full flex-shrink-0 ring-1 ring-[var(--input-border)]"
             />
           ) : (
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500/30 to-purple-500/30 flex items-center justify-center flex-shrink-0 text-xs font-bold text-indigo-400">
+            <div className="w-8 h-8 rounded-full bg-dv-accent/20 flex items-center justify-center flex-shrink-0 text-xs font-bold text-dv-accent">
               {user?.username?.charAt(0).toUpperCase() || 'U'}
             </div>
           )}

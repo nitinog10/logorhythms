@@ -150,7 +150,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--page-bg)] flex text-[var(--text-primary)] selection:bg-indigo-500/30">
+    <div className="min-h-screen bg-[var(--page-bg)] flex text-[var(--text-primary)] selection:bg-dv-accent/30">
       <Sidebar />
 
       <main className="flex-1 overflow-y-auto relative">
@@ -184,7 +184,7 @@ export default function DashboardPage() {
               </button>
               <button
                 onClick={() => setIsConnectModalOpen(true)}
-                className="flex items-center gap-2 text-[13px] font-semibold bg-white text-black px-5 py-1.5 rounded-full hover:bg-white/90 hover:shadow-[0_0_20px_rgba(99,102,241,0.3)] active:scale-[0.97] transition-all duration-500"
+                className="flex items-center gap-2 text-[13px] font-semibold bg-white text-black px-5 py-1.5 rounded-full hover:bg-white/90 hover:shadow-[0_0_20px_rgba(255,99,99,0.3)] active:scale-[0.97] transition-all duration-500"
               >
                 <Plus className="w-3.5 h-3.5" />
                 Connect
@@ -202,8 +202,8 @@ export default function DashboardPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, ease, delay: 0.1 }}
             >
-              <span className="inline-flex items-center gap-2 text-[12px] tracking-[0.2em] uppercase text-indigo-400/70 mb-5 font-medium">
-                <span className="w-8 h-[1px] bg-indigo-500/50" />
+              <span className="inline-flex items-center gap-2 text-[12px] tracking-[0.2em] uppercase text-dv-accent/70 mb-5 font-medium">
+                <span className="w-8 h-[1px] bg-dv-accent/50" />
                 {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
               </span>
             </motion.div>
@@ -250,7 +250,7 @@ export default function DashboardPage() {
                 label="Total Repos"
                 value={connectedRepos.length}
                 icon={<FolderGit2 className="w-6 h-6" />}
-                color="#6366f1"
+                color="#FF6363"
                 sub={connectedRepos.length === 1 ? 'repository' : 'repositories'}
               />
             </motion.div>
@@ -285,8 +285,8 @@ export default function DashboardPage() {
               onClick={() => setIsConnectModalOpen(true)}
               className="group flex items-center gap-2 text-[13px] font-medium px-5 py-2.5 rounded-full border border-[var(--input-border)] text-[var(--text-secondary)] hover:bg-white/[0.05] hover:text-[var(--text-primary)] hover:border-white/[0.18] active:scale-[0.97] transition-all duration-300"
             >
-              <div className="w-6 h-6 rounded-lg bg-indigo-500/10 flex items-center justify-center group-hover:bg-indigo-500/20 transition-colors">
-                <Plus className="w-3.5 h-3.5 text-indigo-400" />
+              <div className="w-6 h-6 rounded-lg bg-dv-accent/10 flex items-center justify-center group-hover:bg-dv-accent/20 transition-colors">
+                <Plus className="w-3.5 h-3.5 text-dv-accent" />
               </div>
               Add Repository
             </button>
@@ -294,8 +294,8 @@ export default function DashboardPage() {
               href="/walkthroughs"
               className="group flex items-center gap-2 text-[13px] font-medium px-5 py-2.5 rounded-full border border-[var(--input-border)] text-[var(--text-secondary)] hover:bg-white/[0.05] hover:text-[var(--text-primary)] hover:border-white/[0.18] transition-all duration-300"
             >
-              <div className="w-6 h-6 rounded-lg bg-purple-500/10 flex items-center justify-center group-hover:bg-purple-500/20 transition-colors">
-                <Play className="w-3.5 h-3.5 text-purple-400" />
+              <div className="w-6 h-6 rounded-lg bg-dv-accent/10 flex items-center justify-center group-hover:bg-dv-accent/20 transition-colors">
+                <Play className="w-3.5 h-3.5 text-dv-accent" />
               </div>
               Walkthroughs
             </Link>
@@ -320,7 +320,7 @@ export default function DashboardPage() {
                   placeholder="Filter…"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl px-3 py-2 pl-9 text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-indigo-500/30 focus:border-indigo-500/25 transition-all"
+                  className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl px-3 py-2 pl-9 text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-dv-accent/30 focus:border-dv-accent/25 transition-all"
                 />
               </div>
             )}
@@ -334,7 +334,7 @@ export default function DashboardPage() {
               animate={{ opacity: 1 }}
             >
               <div className="text-center">
-                <Loader2 className="w-6 h-6 text-indigo-400 animate-spin mx-auto mb-3" />
+                <Loader2 className="w-6 h-6 text-dv-accent animate-spin mx-auto mb-3" />
                 <span className="text-[14px] text-[var(--text-muted)]">Loading repositories…</span>
               </div>
             </motion.div>
@@ -474,14 +474,14 @@ function RepoCard({ repo }: { repo: Repository }) {
           <div
             className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300"
             style={{
-              backgroundColor: isUpload ? 'rgba(168, 85, 247, 0.08)' : 'rgba(99, 102, 241, 0.08)',
-              border: `1px solid ${isUpload ? 'rgba(168, 85, 247, 0.15)' : 'rgba(99, 102, 241, 0.15)'}`,
+              backgroundColor: isUpload ? 'rgba(255, 99, 99, 0.08)' : 'rgba(255, 99, 99, 0.08)',
+              border: `1px solid ${isUpload ? 'rgba(255, 99, 99, 0.15)' : 'rgba(255, 99, 99, 0.15)'}`,
             }}
           >
             {isUpload ? (
-              <Upload className="w-5 h-5 text-purple-400 group-hover:text-purple-300 transition-colors" />
+              <Upload className="w-5 h-5 text-dv-accent group-hover:text-dv-accent/80 transition-colors" />
             ) : (
-              <FolderGit2 className="w-5 h-5 text-indigo-400 group-hover:text-indigo-300 transition-colors" />
+              <FolderGit2 className="w-5 h-5 text-dv-accent group-hover:text-dv-accent/80 transition-colors" />
             )}
           </div>
 
@@ -491,7 +491,7 @@ function RepoCard({ repo }: { repo: Repository }) {
             </h4>
             <div className="flex items-center gap-2 flex-wrap">
               {isUpload && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-400 text-[10px] font-bold tracking-wider uppercase">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-dv-accent/10 text-dv-accent text-[10px] font-bold tracking-wider uppercase">
                   <Upload className="w-2.5 h-2.5" />
                   Upload
                 </span>
@@ -553,8 +553,8 @@ function EmptyState({ onConnect }: { onConnect: () => void }) {
       <GradientMesh className="opacity-60" />
 
       <div className="relative z-10">
-        <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500/15 to-purple-500/15 border border-indigo-500/10 flex items-center justify-center mx-auto mb-8 shadow-[0_0_60px_rgba(99,102,241,0.1)]">
-          <GitBranch className="w-8 h-8 text-indigo-400" />
+        <div className="w-20 h-20 rounded-2xl bg-dv-accent/10 border border-dv-accent/10 flex items-center justify-center mx-auto mb-8 shadow-[0_0_60px_rgba(255,99,99,0.15)]">
+          <GitBranch className="w-8 h-8 text-dv-accent" />
         </div>
 
         <RevealText
@@ -570,7 +570,7 @@ function EmptyState({ onConnect }: { onConnect: () => void }) {
 
         <button
           onClick={onConnect}
-          className="group inline-flex items-center gap-2.5 bg-white text-black font-semibold text-[15px] px-8 py-3.5 rounded-full hover:shadow-[0_0_30px_rgba(99,102,241,0.4)] active:scale-[0.96] transition-all duration-500"
+          className="group inline-flex items-center gap-2.5 bg-white text-black font-semibold text-[15px] px-8 py-3.5 rounded-full hover:shadow-[0_0_30px_rgba(255,99,99,0.4)] active:scale-[0.96] transition-all duration-500"
         >
           <Plus className="w-4 h-4" />
           Connect Repository
