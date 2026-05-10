@@ -166,9 +166,30 @@ async def _ensure_repo_cloned(repo: Repository, access_token: str) -> bool:
     is wiped but DynamoDB still holds the repo record with a stale local_path.
     This helper transparently re-downloads when that happens.
     
+    Repository paths are always normalized to
+    ``{settings.repos_directory}/{repo.id}`` so we never treat a random existing
+    directory (e.g. the process working directory) as a valid clone when
+    ``local_path`` was wrong or relative to a flaky CWD.
+    
     Returns True if the repo is available on disk after the call.
     """
-    if repo.local_path and os.path.exists(repo.local_path):
+    canonical = os.path.normpath(
+        os.path.join(settings.repos_directory, repo.id)
+    )
+    prev_norm = (
+        os.path.normpath(os.path.abspath(repo.local_path))
+        if repo.local_path
+        else ""
+    )
+    if prev_norm != canonical:
+        repo.local_path = canonical
+        repositories_db[repo.id] = repo
+        try:
+            save_repositories(repositories_db)
+        except Exception:
+            pass
+
+    if os.path.isdir(canonical) and os.listdir(canonical):
         return True
     
     # Preserve original timestamps — re-clone should not reset them

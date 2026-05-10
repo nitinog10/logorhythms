@@ -1,0 +1,41 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id String @id @default(cuid())
+  email String @unique
+  name String
+  status String
+  createdAt DateTime @default(now())
+}
+
+model Order {
+  id String @id @default(cuid())
+  userId String
+  amount Number
+  createdAt DateTime @default(now())
+}
+
+model Subscription {
+  id String @id @default(cuid())
+  userId String
+  plan String
+  startDate DateTime
+  endDate DateTime
+}
+
+model ApiUsage {
+  id String @id @default(cuid())
+  endpoint String
+  method String
+  avgLatency Number
+  errorRate Number
+  callCount Number
+  timestamp DateTime
+}

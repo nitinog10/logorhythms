@@ -51,6 +51,8 @@ class User(BaseModel):
     access_token: str
     subscription_tier: str = "free"  # free, pro, team
     razorpay_customer_id: Optional[str] = None
+    vercel_access_token: Optional[str] = None
+    vercel_team_id: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -859,4 +861,4 @@ class UsageLimitError(BaseModel):
 
 # Resolve forward references
 FileNode.model_rebuild()
-ASTNode.model_rebuild()
+ASTNode.model_rebuild()

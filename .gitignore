@@ -60,6 +60,9 @@ htmlcov/
 *.tmp
 .cache/
 
-# Repos (cloned repositories for analysis)
+# Repos (cloned repositories for analysis) — legacy under backend/repos
 backend/repos/
+
+# Studio + preview machine-local dirs (outside backend/ in typical monorepo dev)
+docuverse_data/
 

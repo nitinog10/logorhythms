@@ -121,3 +121,25 @@ async def call_nova_pro(prompt: str, max_tokens: int = 4096, **kw) -> str:
     return await _call_bedrock(
         NOVA_PRO, prompt, max_tokens, use_latency_opt=True, **kw
     )
+
+
+def call_nova_lite_sync(
+    prompt: str,
+    *,
+    max_tokens: int = 2048,
+    temperature: float = 0.2,
+    system_prompt: Optional[str] = None,
+) -> str:
+    """Synchronous Nova Lite call for worker threads (e.g. ``surgical_edit_engine``).
+
+    Avoids asyncio in threads run via ``asyncio.to_thread``.
+    """
+    kwargs: dict = {
+        "modelId": NOVA_LITE,
+        "messages": [{"role": "user", "content": [{"text": prompt}]}],
+        "inferenceConfig": {"maxTokens": max_tokens, "temperature": temperature},
+    }
+    if system_prompt:
+        kwargs["system"] = [{"text": system_prompt}]
+    resp = _bedrock.converse(**kwargs)
+    return resp["output"]["message"]["content"][0]["text"]

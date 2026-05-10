@@ -1,0 +1,77 @@
+{
+  "id": "sess_50e63862b3e94014",
+  "user_id": "user_187120461",
+  "kind": "imported",
+  "source_id": "repo_7fea5733bba2",
+  "title": "my-interior-design-website",
+  "workspace_path": "C:\\Users\\Vivan\\Desktop\\Gitforge\\backend\\repos\\repo_7fea5733bba2",
+  "branch_base": "main",
+  "branch_head": "docuverse/session-my-interior--user_1-20260508-101924-ed3190",
+  "commit_sha": null,
+  "bootstrap": {
+    "framework": "nextjs",
+    "framework_variant": null,
+    "framework_version": "15.5.4",
+    "runtime": "node18",
+    "package_manager": "npm",
+    "monorepo_tool": null,
+    "app_root_rel": ".",
+    "install_cmd": "npm install --no-audit --no-fund",
+    "dev_cmd": "npm run dev",
+    "build_cmd": "npm run build",
+    "test_cmd": "npm test",
+    "env_keys_required": [],
+    "env_keys_optional": [
+      "ADMIN_PASSWORD"
+    ],
+    "env_keys_unused": [],
+    "ports_hint": 3000,
+    "healthcheck_path": "/",
+    "detection_evidence": [
+      {
+        "rule": "lockfile",
+        "detail": "package-lock.json",
+        "weight": 1.0
+      },
+      {
+        "rule": "framework",
+        "detail": "next (next.config.ts)",
+        "weight": 1.0
+      }
+    ],
+    "confidence": 1.0,
+    "candidate_apps": [],
+    "notes": [],
+    "clone_strategy": {
+      "default": "shallow_partial",
+      "depth": 1,
+      "filter": "blob:none",
+      "sparse": false,
+      "sparse_paths": [],
+      "upgrade_triggers": [
+        "user-opens-blame-or-history",
+        "user-rebases-onto-base-branch",
+        "structural-rename-refactor"
+      ]
+    }
+  },
+  "runtime": {
+    "status": "stopped",
+    "url": null,
+    "port": null,
+    "pid": null,
+    "started_at": null
+  },
+  "graphs_built": false,
+  "route_index": null,
+  "policy": null,
+  "edit_history": [],
+  "checkpoints": [],
+  "chat_messages": [],
+  "last_inspected_node": null,
+  "initial_focus": null,
+  "metadata": {},
+  "status": "bootstrapping",
+  "created_at": "2026-05-08T10:19:24.043788+00:00",
+  "updated_at": "2026-05-08T10:19:27.680394+00:00"
+}

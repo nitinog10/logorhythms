@@ -3,14 +3,16 @@ Authentication Endpoints - GitHub OAuth
 """
 
 import secrets
-from datetime import datetime, timedelta
-from typing import Optional
+import logging
+from datetime import datetime, timedelta, timezone
+from typing import Optional, Set
 
-from fastapi import APIRouter, HTTPException, Depends, Response, Header
+from fastapi import APIRouter, HTTPException, Depends, Response, Header, Cookie, Request
 from fastapi.responses import RedirectResponse
 from typing import Optional as Opt
 import httpx
-from jose import jwt
+from jose import jwt, JWTError
+from pydantic import BaseModel, Field
 
 from app.config import get_settings
 from app.models.schemas import User, UserResponse, APIResponse
@@ -18,32 +20,93 @@ from app.services.persistence import save_users, load_users, save_subscription, 
 
 router = APIRouter()
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 # Load users from persistence on startup
 users_db: dict[str, User] = load_users()
 sessions_db: dict[str, str] = {}  # session_token -> user_id
 
+# A7 fix: short-lived access tokens + revocation set.
+# In production replace _revoked_jtis with a Redis SET with TTL.
+_revoked_jtis: Set[str] = set()
+
+ACCESS_TOKEN_TTL = timedelta(hours=8)
+REFRESH_TOKEN_TTL = timedelta(days=30)
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    """Create JWT access token with user info embedded"""
+    """Create a short-lived JWT access token (default 8 h)."""
     to_encode = data.copy()
-    # Default to 30 days for better session persistence
-    expire = datetime.utcnow() + (expires_delta or timedelta(days=30))
-    to_encode.update({"exp": expire, "iat": datetime.utcnow()})
+    jti = secrets.token_urlsafe(16)
+    expire = _utcnow() + (expires_delta or ACCESS_TOKEN_TTL)
+    to_encode.update({"exp": expire, "iat": _utcnow(), "jti": jti, "type": "access"})
     return jwt.encode(to_encode, settings.secret_key, algorithm="HS256")
 
 
+def create_refresh_token(user_id: str) -> str:
+    """Create a long-lived refresh token (30 days, not stored in localStorage)."""
+    jti = secrets.token_urlsafe(16)
+    expire = _utcnow() + REFRESH_TOKEN_TTL
+    payload = {
+        "user_id": user_id,
+        "exp": expire,
+        "iat": _utcnow(),
+        "jti": jti,
+        "type": "refresh",
+    }
+    # Refresh tokens are signed with a different secret so a leaked access
+    # token cannot be used to forge a refresh token.
+    return jwt.encode(payload, settings.secret_key + ":refresh", algorithm="HS256")
+
+
 def decode_access_token(token: str) -> Optional[dict]:
-    """Decode JWT access token"""
+    """Decode and validate a JWT access token."""
     try:
-        return jwt.decode(token, settings.secret_key, algorithms=["HS256"])
-    except Exception:
+        payload = jwt.decode(token, settings.secret_key, algorithms=["HS256"])
+        if payload.get("type") not in ("access", None):
+            return None
+        if payload.get("jti") in _revoked_jtis:
+            return None
+        return payload
+    except JWTError:
         return None
 
 
-async def get_current_user(authorization: str = None) -> Optional[User]:
+def revoke_token(token: str) -> None:
+    """Add a token's jti to the revocation set."""
+    try:
+        payload = jwt.decode(token, settings.secret_key, algorithms=["HS256"],
+                             options={"verify_exp": False})
+        jti = payload.get("jti")
+        if jti:
+            _revoked_jtis.add(jti)
+    except Exception:
+        pass
+
+
+def _auth_failure_log(reason: str, **extra) -> None:
+    logger.info(
+        "auth_failure",
+        extra={"reason": reason, **extra},
+    )
+
+
+async def get_current_user(
+    authorization: str = None,
+    request: Optional[Request] = None,
+    source: str = "unspecified",
+) -> Optional[User]:
     """Get current authenticated user from JWT token"""
     if not authorization:
+        _auth_failure_log(
+            "missing_authorization_header",
+            source=source,
+            path=str(getattr(getattr(request, "url", None), "path", "")),
+        )
         return None
     
     # Handle both "Bearer token" and just "token" formats
@@ -52,6 +115,11 @@ async def get_current_user(authorization: str = None) -> Optional[User]:
     payload = decode_access_token(token)
     
     if not payload or "user_id" not in payload:
+        _auth_failure_log(
+            "invalid_or_expired_access_token",
+            source=source,
+            path=str(getattr(getattr(request, "url", None), "path", "")),
+        )
         return None
     
     user_id = payload["user_id"]
@@ -69,11 +137,21 @@ async def get_current_user(authorization: str = None) -> Optional[User]:
             email=user_data.get("email"),
             avatar_url=user_data.get("avatar_url"),
             access_token=user_data.get("access_token", ""),
+            subscription_tier=user_data.get("subscription_tier", "free"),
+            vercel_access_token=user_data.get("vercel_access_token"),
+            vercel_team_id=user_data.get("vercel_team_id"),
         )
         # Store back in memory for future requests
         users_db[user_id] = user
         # Save to persistence
         save_users(users_db)
+    if not user:
+        _auth_failure_log(
+            "user_missing_for_valid_token",
+            source=source,
+            user_id=str(user_id),
+            path=str(getattr(getattr(request, "url", None), "path", "")),
+        )
     
     return user
 
@@ -188,8 +266,10 @@ async def github_callback(code: str, state: str):
         }
         save_subscription(sub_data)
     
-    # Create session token with user data embedded
-    session_token = create_access_token({
+    # Issue access token (8 h) + refresh token (30 d).
+    # The access token travels in Authorization headers.
+    # The refresh token is sent as HttpOnly cookie (set by /auth/refresh).
+    access_token = create_access_token({
         "user_id": user_id,
         "user_data": {
             "github_id": github_user["id"],
@@ -199,18 +279,30 @@ async def github_callback(code: str, state: str):
             "access_token": access_token,
         }
     })
-    
-    # Redirect to frontend with token (302 is standard for OAuth)
-    return RedirectResponse(
-        url=f"{settings.frontend_url}/auth/callback?token={session_token}",
-        status_code=302
+    refresh_token = create_refresh_token(user_id)
+
+    # Redirect to frontend with access token in URL + refresh token as cookie.
+    # The frontend stores access_token in memory (not localStorage).
+    redirect = RedirectResponse(
+        url=f"{settings.frontend_url}/auth/callback?token={access_token}",
+        status_code=302,
     )
+    redirect.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=not settings.debug,
+        samesite="lax",
+        max_age=int(REFRESH_TOKEN_TTL.total_seconds()),
+        path="/api/auth",
+    )
+    return redirect
 
 
 @router.get("/me")
 async def get_me(authorization: Opt[str] = Header(None, alias="Authorization")):
     """Get current user info"""
-    user = await get_current_user(authorization)
+    user = await get_current_user(authorization, source="auth_me")
     
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -229,22 +321,71 @@ async def get_me(authorization: Opt[str] = Header(None, alias="Authorization")):
 
 
 @router.post("/logout")
-async def logout(authorization: Opt[str] = Header(None, alias="Authorization")):
-    """Logout current user"""
-    # In production, invalidate the token
+async def logout(
+    response: Response,
+    authorization: Opt[str] = Header(None, alias="Authorization"),
+):
+    """Logout: revoke access token and clear refresh-token cookie."""
+    if authorization and authorization.startswith("Bearer "):
+        revoke_token(authorization[7:])
+    response.delete_cookie("refresh_token", path="/api/auth")
     return APIResponse(success=True, message="Logged out successfully")
 
 
 @router.post("/refresh")
-async def refresh_token(authorization: Opt[str] = Header(None, alias="Authorization")):
-    """Refresh access token"""
-    user = await get_current_user(authorization)
-    
+async def refresh_token(
+    request: Request,
+    response: Response,
+    refresh_token_cookie: Opt[str] = Cookie(None, alias="refresh_token"),
+    authorization: Opt[str] = Header(None, alias="Authorization"),
+):
+    """Exchange a refresh-token cookie for a new access token.
+
+    Falls back to the Authorization header for backward compatibility with
+    clients that still store the long-lived token.
+    """
+    user: Optional[User] = None
+
+    # Try refresh token cookie first
+    if refresh_token_cookie:
+        try:
+            payload = jwt.decode(
+                refresh_token_cookie,
+                settings.secret_key + ":refresh",
+                algorithms=["HS256"],
+            )
+            if payload.get("type") == "refresh" and payload.get("jti") not in _revoked_jtis:
+                user_id = payload.get("user_id")
+                user = users_db.get(user_id) if user_id else None
+        except JWTError:
+            _auth_failure_log(
+                "invalid_refresh_cookie",
+                source="auth_refresh",
+                path=str(request.url.path),
+            )
+            pass
+
+    # Backward-compat: accept current access token (will be revoked after rotation)
+    if not user and authorization:
+        user = await get_current_user(
+            authorization,
+            request=request,
+            source="auth_refresh_header_fallback",
+        )
+        if user and authorization.startswith("Bearer "):
+            revoke_token(authorization[7:])   # rotate: revoke old access token
+
     if not user:
+        _auth_failure_log(
+            "refresh_rejected",
+            source="auth_refresh",
+            has_refresh_cookie=bool(refresh_token_cookie),
+            has_authorization=bool(authorization),
+            path=str(request.url.path),
+        )
         raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    # Create new token with extended expiry and user data
-    new_token = create_access_token({
+
+    new_access = create_access_token({
         "user_id": user.id,
         "user_data": {
             "github_id": user.github_id,
@@ -254,13 +395,24 @@ async def refresh_token(authorization: Opt[str] = Header(None, alias="Authorizat
             "access_token": user.access_token,
         }
     })
-    
-    # Get subscription tier
+    new_refresh = create_refresh_token(user.id)
+
+    # Rotate refresh token cookie
+    response.set_cookie(
+        key="refresh_token",
+        value=new_refresh,
+        httponly=True,
+        secure=not settings.debug,
+        samesite="lax",
+        max_age=int(REFRESH_TOKEN_TTL.total_seconds()),
+        path="/api/auth",
+    )
+
     sub = load_subscription(user.id)
     tier = sub.get("tier", "free") if sub else user.subscription_tier
-    
+
     return {
-        "token": new_token,
+        "token": new_access,
         "user": UserResponse(
             id=user.id,
             username=user.username,
@@ -274,7 +426,7 @@ async def refresh_token(authorization: Opt[str] = Header(None, alias="Authorizat
 @router.get("/verify")
 async def verify_token(authorization: Opt[str] = Header(None, alias="Authorization")):
     """Verify if token is valid"""
-    user = await get_current_user(authorization)
+    user = await get_current_user(authorization, source="auth_verify")
     
     if not user:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
@@ -292,5 +444,58 @@ async def verify_token(authorization: Opt[str] = Header(None, alias="Authorizati
             avatar_url=user.avatar_url,
             subscription_tier=tier,
         )
+    }
+
+
+# ---------------------------------------------------------------------------
+# Vercel personal access token (Phase 3)
+# ---------------------------------------------------------------------------
+
+class _VercelConnectBody(BaseModel):
+    token: str = Field(..., min_length=10, max_length=200)
+    team_id: Optional[str] = Field(None, max_length=64)
+
+
+@router.post("/integrations/vercel/connect")
+async def connect_vercel(
+    body: _VercelConnectBody,
+    authorization: Opt[str] = Header(None, alias="Authorization"),
+):
+    """Store the user's Vercel personal access token."""
+    user = await get_current_user(authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    user.vercel_access_token = body.token
+    user.vercel_team_id = body.team_id
+    users_db[user.id] = user
+    save_users(users_db)
+    return {"connected": True, "team_id": body.team_id}
+
+
+@router.delete("/integrations/vercel")
+async def disconnect_vercel(
+    authorization: Opt[str] = Header(None, alias="Authorization"),
+):
+    """Remove the user's stored Vercel token."""
+    user = await get_current_user(authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    user.vercel_access_token = None
+    user.vercel_team_id = None
+    users_db[user.id] = user
+    save_users(users_db)
+    return {"connected": False}
+
+
+@router.get("/integrations/vercel")
+async def vercel_status(
+    authorization: Opt[str] = Header(None, alias="Authorization"),
+):
+    user = await get_current_user(authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return {
+        "connected": bool(user.vercel_access_token),
+        "team_id": user.vercel_team_id,
     }
 

@@ -15,6 +15,7 @@ import {
   Sparkles,
   Type,
   Eye,
+  Link2,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -95,10 +96,16 @@ export default function SettingsPage() {
     router.push('/')
   }
 
-  const sections = [
+  const sections: Array<{
+    id: string
+    label: string
+    icon: typeof User
+    href?: string
+  }> = [
     { id: 'account', label: 'Account', icon: User },
     { id: 'appearance', label: 'Appearance', icon: Palette },
     { id: 'billing', label: 'Billing', icon: CreditCard },
+    { id: 'integrations', label: 'Integrations', icon: Link2, href: '/settings/integrations' },
   ]
 
   if (!mounted) {
@@ -138,21 +145,20 @@ export default function SettingsPage() {
               {sections.map((section, i) => {
                 const Icon = section.icon
                 const isActive = activeSection === section.id
-                return (
-                  <button
-                    key={section.id}
-                    onClick={() => setActiveSection(section.id)}
-                    className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition-all active:scale-[0.98] ${
-                      i < sections.length - 1 ? 'border-b border-[var(--text-faint)]' : ''
-                    } ${
-                      isActive
-                        ? 'bg-[var(--hover-bg)] text-[var(--text-primary)]'
-                        : 'text-[var(--text-muted)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-secondary)]'
-                    }`}
-                  >
-                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
-                      isActive ? 'bg-indigo-500/15' : 'bg-[var(--input-bg)]'
-                    }`}>
+                const rowClass = `w-full flex items-center gap-3 px-4 py-3.5 text-left transition-all active:scale-[0.98] ${
+                  i < sections.length - 1 ? 'border-b border-[var(--text-faint)]' : ''
+                } ${
+                  isActive
+                    ? 'bg-[var(--hover-bg)] text-[var(--text-primary)]'
+                    : 'text-[var(--text-muted)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-secondary)]'
+                }`
+                const inner = (
+                  <>
+                    <div
+                      className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
+                        isActive ? 'bg-indigo-500/15' : 'bg-[var(--input-bg)]'
+                      }`}
+                    >
                       <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-indigo-400' : ''}`} />
                     </div>
                     <span className="text-[13px] font-medium">{section.label}</span>
@@ -163,6 +169,18 @@ export default function SettingsPage() {
                         transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                       />
                     )}
+                  </>
+                )
+                if (section.href) {
+                  return (
+                    <Link key={section.id} href={section.href} className={rowClass}>
+                      {inner}
+                    </Link>
+                  )
+                }
+                return (
+                  <button key={section.id} type="button" onClick={() => setActiveSection(section.id)} className={rowClass}>
+                    {inner}
                   </button>
                 )
               })}

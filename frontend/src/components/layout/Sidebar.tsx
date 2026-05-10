@@ -4,13 +4,13 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard,
-  FolderGit2,
   Play,
   Zap,
   Settings,
   ChevronLeft,
   LogOut,
   Crown,
+  Boxes,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
@@ -20,7 +20,7 @@ import PlanBadge from '@/components/billing/PlanBadge'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/repositories', label: 'Repositories', icon: FolderGit2 },
+  { href: '/studio', label: 'Studio', icon: Boxes },
   { href: '/walkthroughs', label: 'Walkthroughs', icon: Play },
   { href: '/signal', label: 'Signal', icon: Zap },
   { href: '/settings', label: 'Settings', icon: Settings },
@@ -107,6 +107,11 @@ export function Sidebar() {
               >
                 {item.label}
               </span>
+              {(item as any).isNew && !isCollapsed && (
+                <span className="ml-auto px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider uppercase bg-dv-accent/15 text-dv-accent border border-dv-accent/20">
+                  NEW
+                </span>
+              )}
             </Link>
           )
         })}

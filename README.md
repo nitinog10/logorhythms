@@ -311,7 +311,7 @@ python -m venv venv
 source venv/bin/activate  # Windows: .\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 cp .env.example .env      # Edit .env with your AWS keys
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --reload-dir app --port 8000
 ```
 
 ### 3. Frontend Setup

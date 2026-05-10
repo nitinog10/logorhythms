@@ -17,8 +17,9 @@ python -m venv venv
 pip install -r requirements.txt
 cp .env.example .env  # then fill in API keys
 
-# Run dev server
-uvicorn app.main:app --reload --port 8000
+# Run dev server: use --reload-dir app (watch only backend/app). Clones/workspace
+# default to ../docuverse_data (outside backend) so npm install does not reload uvicorn.
+uvicorn app.main:app --reload --reload-dir app --port 8000
 
 # Swagger docs available at http://localhost:8000/api/docs
 ```

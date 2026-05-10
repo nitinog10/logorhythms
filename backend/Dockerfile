@@ -1,9 +1,24 @@
-# ---- Base image ----
+# ---- Node.js (Studio / App Studio live preview: npm install, next dev, tsx, etc.)
+# Official image is multi-arch (amd64 + arm64) so App Runner / ECS / Graviton work.
+FROM node:22-bookworm-slim AS nodejs
+
+# ---- Python API ----
 FROM python:3.11-slim AS base
 
 # Prevent Python from buffering stdout/stderr (useful for logs)
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PORT=8000 \
+    PREVIEW_WORKSPACE=/app/workspace \
+    REPOS_DIRECTORY=/app/repos
+
+# Node on PATH for subprocess previews (matches local dev behavior)
+COPY --from=nodejs /usr/local/bin/node /usr/local/bin/node
+COPY --from=nodejs /usr/local/bin/npm /usr/local/bin/npm
+COPY --from=nodejs /usr/local/bin/npx /usr/local/bin/npx
+COPY --from=nodejs /usr/local/lib/node_modules /usr/local/lib/node_modules
+
+RUN node --version && npm --version
 
 # Install system dependencies:
 #  - git: required by GitPython for cloning repos
@@ -25,12 +40,12 @@ RUN pip install --no-cache-dir --upgrade pip \
 # ---- Application code ----
 COPY . .
 
-# Create directories that the app expects
-RUN mkdir -p repos
+# Writable dirs: clones (empty in image — runtime population), Studio workspace,
+# persisted Studio sessions when DynamoDB is not used
+RUN mkdir -p repos workspace workspace/_studio_sessions \
+    && chmod -R u+rwX repos workspace
 
-# AWS App Runner / ECS injects PORT; default to 8000 for local Docker usage
-ENV PORT=8000
-
+# AWS App Runner / ECS injects PORT; default above is 8000
 EXPOSE ${PORT}
 
 # Production server: gunicorn with uvicorn workers

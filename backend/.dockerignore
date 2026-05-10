@@ -6,6 +6,7 @@ __pycache__
 venv/
 .venv/
 repos/
+workspace/
 chroma_db/
 *.egg-info
 .git
