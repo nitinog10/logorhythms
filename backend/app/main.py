@@ -138,9 +138,13 @@ def create_app() -> FastAPI:
 
     # Regex for Netlify deploy-preview URLs. Scoped to a specific site slug —
     # replace NETLIFY_SITE_SLUG with your actual Netlify site name.
-    netlify_slug = os.getenv("NETLIFY_SITE_SLUG", "")
+    netlify_slug = os.getenv("NETLIFY_SITE_SLUG", "").strip()
+    if netlify_slug:
+        prod_netlify_origin = f"https://{netlify_slug}.netlify.app".rstrip("/")
+        if prod_netlify_origin not in allowed_origins:
+            allowed_origins.append(prod_netlify_origin)
     origin_regex = (
-        rf"https://(deploy-preview-\d+--{re.escape(netlify_slug)}\.netlify\.app)"
+        rf"https://deploy-preview-\d+--{re.escape(netlify_slug)}\.netlify\.app"
         if netlify_slug
         else None
     )

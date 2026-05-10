@@ -5,6 +5,10 @@
 
 [build.environment]
   NODE_VERSION = "18"
+  # Set in Netlify UI → Environment variables (required for API calls):
+  #   NEXT_PUBLIC_API_URL=https://YOUR-BACKEND-HOST/api
+  # Backend must include CORS for this site → set FRONTEND_URL or EXTRA_CORS_ORIGINS,
+  # and optionally NETLIFY_SITE_SLUG (see backend `.env.example` / main.py).
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"

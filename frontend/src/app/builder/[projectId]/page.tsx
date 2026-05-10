@@ -10,9 +10,8 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { builder, BuilderProject } from '@/lib/api'
+import { builder, BuilderProject, publicApiBaseUrl } from '@/lib/api'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const ease = [0.23, 1, 0.32, 1] as const
 
 export default function BuilderWorkspacePage() {
@@ -246,7 +245,7 @@ export default function BuilderWorkspacePage() {
   const fullstackFiles = project?.fullstack_files ? Object.keys(project.fullstack_files).sort() : []
   // Per-screen preview — serves Stitch HTML directly, no SPA wrapper
   const previewUrl = selectedScreen
-    ? `${API_URL}/api/builder/projects/${projectId}/screens/${selectedScreen}/preview?t=${previewKey}`
+    ? `${publicApiBaseUrl}/builder/projects/${projectId}/screens/${selectedScreen}/preview?t=${previewKey}`
     : ''
   const activePreviewUrl = previewMode === 'fullstack' && fsPreviewUrl ? fsPreviewUrl : previewUrl
 

@@ -4,7 +4,12 @@
  * Handles all communication with the FastAPI backend
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'
+/** Public FastAPI prefix (no trailing slash), e.g. `https://api.example.com/api`. Set via `NEXT_PUBLIC_API_URL` on Netlify/Vercel. */
+export const publicApiBaseUrl = (
+  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'
+).replace(/\/+$/, '')
+
+const API_BASE_URL = publicApiBaseUrl
 
 /** Safely extract a human-readable message from FastAPI error detail (string or object). */
 function extractDetailMessage(detail: unknown, fallback: string): string {
