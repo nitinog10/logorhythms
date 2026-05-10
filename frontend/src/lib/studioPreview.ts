@@ -58,11 +58,14 @@ export function normalizeStudioPreviewUrl(
 
   try {
     const u = new URL(trimmed)
-    const host = u.hostname.toLowerCase()
+    // Annotate string so control-flow narrowing (https + mixed-content branch) cannot
+    // incorrectly exclude IPv6 loopback literals and break builds (see Netlify TS check).
+    const host: string = u.hostname.toLowerCase()
+    const isIpv6Loopback = host === '[::1]' || host === '::1'
     const isLoopback =
       host === 'localhost' ||
       host === '127.0.0.1' ||
-      host === '[::1]' ||
+      isIpv6Loopback ||
       host === '0.0.0.0'
 
     if (
@@ -74,7 +77,7 @@ export function normalizeStudioPreviewUrl(
     }
 
     if (u.protocol === 'http:' && isLoopback) {
-      if (host === '[::1]' || host === '::1') {
+      if (isIpv6Loopback) {
         u.hostname = 'localhost'
         return { src: u.toString(), mixedContentBlocked: false }
       }
