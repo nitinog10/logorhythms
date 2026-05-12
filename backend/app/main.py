@@ -123,10 +123,13 @@ def create_app() -> FastAPI:
     allowed_origins = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        # Production frontend domains
+        "https://logorhythms.in",
+        "https://www.logorhythms.in",
     ]
     if settings.frontend_url:
         _fu = str(settings.frontend_url).strip().rstrip("/")
-        if _fu:
+        if _fu and _fu not in allowed_origins:
             allowed_origins.append(_fu)
 
     # Additional trusted origins can be appended at deploy time via env var.
