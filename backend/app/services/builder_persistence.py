@@ -15,12 +15,25 @@ from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
+import os
+from pathlib import Path
+
 # In-memory storage — primary data store
 _builder_projects_cache: Dict[str, dict] = {}
 
+# File-system fallback for environments without DynamoDB
+_FS_BACKUP_DIR = Path("workspace/_builder_projects")
+
+def _init_fs_backup():
+    try:
+        _FS_BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        logger.error(f"Failed to create builder projects backup dir: {e}")
+
+_init_fs_backup()
+
 # Flag to suppress repeated DynamoDB warnings after first failure
 _dynamo_available: Optional[bool] = None
-
 
 def _try_dynamo():
     """Check if DynamoDB builder table is reachable. Only checks once."""
@@ -35,7 +48,7 @@ def _try_dynamo():
         _dynamo_available = True
     except Exception:
         _dynamo_available = False
-        logger.info("Builder DynamoDB table not found — using in-memory storage only")
+        logger.info("Builder DynamoDB table not found — using local file system storage")
     return _dynamo_available
 
 
@@ -44,7 +57,7 @@ def _try_dynamo():
 # ---------------------------------------------------------------------------
 
 def save_builder_project(project: Dict[str, Any]) -> None:
-    """Persist a builder project (in-memory primary, DynamoDB optional)."""
+    """Persist a builder project (in-memory primary, DynamoDB or FS optional)."""
     project_id = project["id"]
     _builder_projects_cache[project_id] = project
 
@@ -61,6 +74,14 @@ def save_builder_project(project: Dict[str, Any]) -> None:
             })
         except Exception as e:
             logger.debug(f"DynamoDB save skipped: {e}")
+    else:
+        try:
+            if _FS_BACKUP_DIR.exists():
+                file_path = _FS_BACKUP_DIR / f"{project_id}.json"
+                with open(file_path, "w", encoding="utf-8") as f:
+                    json.dump(project, f, default=str)
+        except Exception as e:
+            logger.debug(f"FS backup save skipped: {e}")
 
 
 def load_builder_project(project_id: str) -> Optional[Dict[str, Any]]:
@@ -81,6 +102,16 @@ def load_builder_project(project_id: str) -> Optional[Dict[str, Any]]:
                 return data
         except Exception as e:
             logger.debug(f"DynamoDB load skipped: {e}")
+    else:
+        try:
+            file_path = _FS_BACKUP_DIR / f"{project_id}.json"
+            if file_path.exists():
+                with open(file_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                _builder_projects_cache[project_id] = data
+                return data
+        except Exception as e:
+            logger.debug(f"FS backup load skipped: {e}")
 
     return None
 
@@ -104,6 +135,20 @@ def load_user_builder_projects(user_id: str) -> List[Dict[str, Any]]:
                 cached.append(data)
         except Exception as e:
             logger.debug(f"DynamoDB scan skipped: {e}")
+    elif not _try_dynamo() and not cached:
+        try:
+            if _FS_BACKUP_DIR.exists():
+                for file_path in _FS_BACKUP_DIR.glob("*.json"):
+                    try:
+                        with open(file_path, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                        if data.get("user_id") == user_id:
+                            _builder_projects_cache[data["id"]] = data
+                            cached.append(data)
+                    except Exception as e_file:
+                        logger.debug(f"Failed to load backup file {file_path}: {e_file}")
+        except Exception as e:
+            logger.debug(f"FS backup scan skipped: {e}")
 
     return sorted(cached, key=lambda p: p.get("updated_at", ""), reverse=True)
 
@@ -119,6 +164,13 @@ def delete_builder_project(project_id: str) -> bool:
             table.delete_item(Key={"id": project_id})
         except Exception as e:
             logger.debug(f"DynamoDB delete skipped: {e}")
+    else:
+        try:
+            file_path = _FS_BACKUP_DIR / f"{project_id}.json"
+            if file_path.exists():
+                file_path.unlink()
+        except Exception as e:
+            logger.debug(f"FS backup delete skipped: {e}")
     return True
 
 
