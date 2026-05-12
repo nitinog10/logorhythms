@@ -1536,102 +1536,130 @@ async def magic_build_project_stream(
         raise HTTPException(status_code=403, detail="Access denied")
 
     async def _event_stream() -> AsyncIterator[str]:
-        """Async generator that drives the build and yields SSE-formatted strings."""
+        """Async generator that drives the build and yields SSE-formatted strings.
+
+        Hardened for AWS App Runner / ALB environments:
+        - 8-second heartbeat interval (well under 60s request timeout)
+        - SSE comment-line keep-alives (``: heartbeat``) between data events
+          — invisible to EventSource parsers but keep TCP streams open
+        - Graceful ``GeneratorExit`` handling for client disconnects
+        """
         def _sse(payload: dict) -> str:
             return f"data: {json.dumps(payload)}\n\n"
 
-        # ── Emit 'started' immediately so CORS headers flush to the browser ──
-        yield _sse({"status": "started", "project_id": project_id})
-        await asyncio.sleep(0)  # flush
-
-        # Mark building
-        project["magic_build_status"] = "building"
-        save_builder_project(project)
-
-        yield _sse({"status": "progress", "message": "Analysing screens and generating full-stack spec..."})
-        await asyncio.sleep(0)
-
         try:
-            # Run the blocking magic_build on a thread so we can still yield
-            # heartbeat pings while it executes.
-            result_holder: Dict[str, Any] = {}
-            build_done = asyncio.Event()
+            # ── Emit 'started' immediately so CORS headers flush to the browser ──
+            yield _sse({"status": "started", "project_id": project_id})
+            await asyncio.sleep(0)  # flush
 
-            async def _run_build() -> None:
-                try:
-                    result_holder["result"] = await magic_build(project)
-                except Exception as exc:
-                    result_holder["error"] = str(exc)
-                finally:
-                    build_done.set()
+            # Mark building
+            project["magic_build_status"] = "building"
+            save_builder_project(project)
 
-            build_task = asyncio.ensure_future(_run_build())
+            yield _sse({"status": "progress", "message": "Analysing screens and generating full-stack spec..."})
+            await asyncio.sleep(0)
 
-            # Heartbeat loop — keeps the SSE connection alive (prevents App
-            # Runner and proxies from closing an idle TCP connection).
-            heartbeat_interval = 20  # seconds
-            elapsed = 0
-            while not build_done.is_set():
-                try:
-                    await asyncio.wait_for(asyncio.shield(build_done.wait()), timeout=heartbeat_interval)
-                except asyncio.TimeoutError:
-                    elapsed += heartbeat_interval
-                    yield _sse({"status": "progress", "message": f"Still generating... ({elapsed}s elapsed)"})
+            try:
+                # Run the blocking magic_build on a thread so we can still yield
+                # heartbeat pings while it executes.
+                result_holder: Dict[str, Any] = {}
+                build_done = asyncio.Event()
+
+                async def _run_build() -> None:
+                    try:
+                        result_holder["result"] = await magic_build(project)
+                    except Exception as exc:
+                        result_holder["error"] = str(exc)
+                    finally:
+                        build_done.set()
+
+                build_task = asyncio.ensure_future(_run_build())
+
+                # Heartbeat loop — keeps the SSE connection alive (prevents App
+                # Runner and proxies from closing an idle TCP connection).
+                # 8 seconds is well under ALB's 60s idle timeout and AWS App
+                # Runner's request timeout.
+                heartbeat_interval = 8  # seconds
+                elapsed = 0
+                while not build_done.is_set():
+                    try:
+                        await asyncio.wait_for(asyncio.shield(build_done.wait()), timeout=heartbeat_interval)
+                    except asyncio.TimeoutError:
+                        elapsed += heartbeat_interval
+                        # SSE spec: lines starting with ":" are comments — invisible
+                        # to EventSource parsers but keep the TCP stream active
+                        # through ALB / reverse-proxy layers that would otherwise
+                        # close an idle connection.
+                        yield f": keepalive {elapsed}s\n\n"
+                        yield _sse({"status": "progress", "message": f"Still generating... ({elapsed}s elapsed)"})
+                        await asyncio.sleep(0)
+
+                await build_task  # re-raise if it raised
+
+                if "error" in result_holder:
+                    project["magic_build_status"] = "error"
+                    project["magic_build_error"] = result_holder["error"]
+                    project["updated_at"] = datetime.now(timezone.utc).isoformat()
+                    save_builder_project(project)
+                    yield _sse({"status": "error", "error": result_holder["error"]})
+                    return
+
+                result = result_holder.get("result", {})
+
+                if result.get("error"):
+                    project["magic_build_status"] = "error"
+                    project["magic_build_error"] = result["error"]
+                else:
+                    project["fullstack_files"] = result.get("files", {})
+                    project["fullstack_spec"] = result.get("spec", {})
+                    project["magic_build_status"] = "ready"
+                    project["magic_build_summary"] = {
+                        "file_count": result.get("file_count", 0),
+                        "models": result.get("models", []),
+                        "routes": result.get("routes", []),
+                        "pages": result.get("pages", []),
+                    }
+                    yield _sse({
+                        "status": "progress",
+                        "message": f"Generated {result.get('file_count', 0)} files. Saving...",
+                        "file_count": result.get("file_count", 0),
+                    })
                     await asyncio.sleep(0)
 
-            await build_task  # re-raise if it raised
-
-            if "error" in result_holder:
+            except Exception as exc:
+                logger.error(f"Magic Build stream failed: {exc}")
                 project["magic_build_status"] = "error"
-                project["magic_build_error"] = result_holder["error"]
+                project["magic_build_error"] = str(exc)
                 project["updated_at"] = datetime.now(timezone.utc).isoformat()
                 save_builder_project(project)
-                yield _sse({"status": "error", "error": result_holder["error"]})
+                yield _sse({"status": "error", "error": str(exc)[:500]})
                 return
 
-            result = result_holder.get("result", {})
-
-            if result.get("error"):
-                project["magic_build_status"] = "error"
-                project["magic_build_error"] = result["error"]
-            else:
-                project["fullstack_files"] = result.get("files", {})
-                project["fullstack_spec"] = result.get("spec", {})
-                project["magic_build_status"] = "ready"
-                project["magic_build_summary"] = {
-                    "file_count": result.get("file_count", 0),
-                    "models": result.get("models", []),
-                    "routes": result.get("routes", []),
-                    "pages": result.get("pages", []),
-                }
-                yield _sse({
-                    "status": "progress",
-                    "message": f"Generated {result.get('file_count', 0)} files. Saving...",
-                    "file_count": result.get("file_count", 0),
-                })
-                await asyncio.sleep(0)
-
-        except Exception as exc:
-            logger.error(f"Magic Build stream failed: {exc}")
-            project["magic_build_status"] = "error"
-            project["magic_build_error"] = str(exc)
             project["updated_at"] = datetime.now(timezone.utc).isoformat()
             save_builder_project(project)
-            yield _sse({"status": "error", "error": str(exc)[:500]})
+
+            yield _sse({"status": "done", "project": project})
+
+        except GeneratorExit:
+            # Client disconnected mid-stream — save whatever state we have
+            # and exit cleanly instead of crashing with a broken-pipe error.
+            logger.info(f"Magic Build stream: client disconnected for {project_id}")
+            if project.get("magic_build_status") == "building":
+                project["magic_build_status"] = "error"
+                project["magic_build_error"] = "Client disconnected during build"
+                project["updated_at"] = datetime.now(timezone.utc).isoformat()
+                save_builder_project(project)
             return
-
-        project["updated_at"] = datetime.now(timezone.utc).isoformat()
-        save_builder_project(project)
-
-        yield _sse({"status": "done", "project": project})
 
     return StreamingResponse(
         _event_stream(),
         media_type="text/event-stream",
         headers={
-            "Cache-Control": "no-cache",
+            "Cache-Control": "no-cache, no-transform",
             "X-Accel-Buffering": "no",   # tells nginx/ALB not to buffer the stream
             "Connection": "keep-alive",
+            # Prevent AWS ALB from buffering/compressing the event stream
+            "Content-Encoding": "identity",
         },
     )
 

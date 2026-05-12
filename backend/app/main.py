@@ -126,6 +126,9 @@ def create_app() -> FastAPI:
         # Production frontend domains
         "https://logorhythms.in",
         "https://www.logorhythms.in",
+        # Alternate spelling (seen in browser console) — include both to be safe
+        "https://logaryhythms.in",
+        "https://www.logaryhythms.in",
     ]
     if settings.frontend_url:
         _fu = str(settings.frontend_url).strip().rstrip("/")

@@ -1277,6 +1277,12 @@ export const builder = {
    * generating. This avoids the AWS App Runner 60-second request timeout that
    * causes the browser to misreport a dropped connection as a "CORS error".
    *
+   * **Resilience layers:**
+   * 1. SSE comment-line filtering (`: keepalive` lines from server)
+   * 2. If the stream drops without a `done` event, polls `getProject()` up
+   *    to 12 times (every 5s) to check if the build completed server-side
+   * 3. Falls back to the non-streaming `/magic-build` endpoint as last resort
+   *
    * @param projectId - The builder project to run magic build on
    * @param onProgress - Called with each progress event from the server
    * @returns The final BuilderProject when generation completes
@@ -1288,14 +1294,48 @@ export const builder = {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
     const url = `${publicApiBaseUrl}/builder/projects/${projectId}/magic-build-stream`
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      credentials: 'include',
-    })
+    // Helper: poll the project to see if the build finished server-side
+    // (covers the case where the SSE stream dropped but the server kept going)
+    const pollForCompletion = async (): Promise<BuilderProject | null> => {
+      onProgress?.({ status: 'progress', message: 'Connection interrupted — checking build status...' })
+      for (let i = 0; i < 12; i++) {
+        await new Promise((r) => setTimeout(r, 5000))
+        try {
+          const proj = await request<BuilderProject>(`/builder/projects/${projectId}`)
+          if (proj.magic_build_status === 'ready' && proj.fullstack_files && Object.keys(proj.fullstack_files).length > 0) {
+            return proj
+          }
+          if (proj.magic_build_status === 'error') {
+            throw new Error(
+              (proj as Record<string, any>).magic_build_error || 'Magic Build failed on server'
+            )
+          }
+          // Still building — keep polling
+          onProgress?.({ status: 'progress', message: `Waiting for build to finish... (${(i + 1) * 5}s)` })
+        } catch (pollErr: any) {
+          // Network error during poll — keep trying
+          if (i === 11) throw pollErr
+        }
+      }
+      return null // timed out
+    }
+
+    let response: Response
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: 'include',
+      })
+    } catch (fetchErr) {
+      // Network error on initial fetch — try non-streaming fallback
+      console.warn('[magicBuildStream] SSE fetch failed, trying non-streaming fallback:', fetchErr)
+      onProgress?.({ status: 'progress', message: 'Switching to non-streaming build...' })
+      return request<BuilderProject>(`/builder/projects/${projectId}/magic-build`, { method: 'POST' })
+    }
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}))
@@ -1309,43 +1349,67 @@ export const builder = {
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
     let buffer = ''
+    let receivedDone = false
 
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
 
-      buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split('\n')
-      buffer = lines.pop() ?? ''  // keep the incomplete last line
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''  // keep the incomplete last line
 
-      for (const line of lines) {
-        const trimmed = line.trim()
-        if (!trimmed.startsWith('data:')) continue
-        const json = trimmed.slice('data:'.length).trim()
-        if (!json) continue
+        for (const line of lines) {
+          const trimmed = line.trim()
+          // SSE comment lines (`: keepalive 8s`) — skip silently, they're
+          // TCP keep-alives emitted by the server to prevent proxy timeouts
+          if (trimmed.startsWith(':')) continue
+          if (!trimmed.startsWith('data:')) continue
+          const json = trimmed.slice('data:'.length).trim()
+          if (!json) continue
 
-        let event: Record<string, unknown>
-        try {
-          event = JSON.parse(json)
-        } catch {
-          continue
-        }
+          let event: Record<string, unknown>
+          try {
+            event = JSON.parse(json)
+          } catch {
+            continue
+          }
 
-        const status = event.status as string
-        if (status === 'done') {
-          return event.project as BuilderProject
-        }
-        if (status === 'error') {
-          throw new Error((event.error as string) || 'Magic Build failed')
-        }
-        if (status === 'progress' || status === 'started') {
-          onProgress?.({
-            status,
-            message: event.message as string | undefined,
-            file_count: event.file_count as number | undefined,
-          })
+          const status = event.status as string
+          if (status === 'done') {
+            receivedDone = true
+            return event.project as BuilderProject
+          }
+          if (status === 'error') {
+            throw new Error((event.error as string) || 'Magic Build failed')
+          }
+          if (status === 'progress' || status === 'started') {
+            onProgress?.({
+              status,
+              message: event.message as string | undefined,
+              file_count: event.file_count as number | undefined,
+            })
+          }
         }
       }
+    } catch (readErr) {
+      // Stream read failed mid-flight (ERR_INCOMPLETE_CHUNKED_ENCODING) —
+      // the build may still be running server-side. Try polling.
+      console.warn('[magicBuildStream] Stream read error, polling for completion:', readErr)
+      const polled = await pollForCompletion()
+      if (polled) return polled
+      // If polling also failed, try non-streaming fallback
+      onProgress?.({ status: 'progress', message: 'Retrying with non-streaming build...' })
+      return request<BuilderProject>(`/builder/projects/${projectId}/magic-build`, { method: 'POST' })
+    }
+
+    // Stream ended cleanly but no 'done' event — poll to check server state
+    if (!receivedDone) {
+      console.warn('[magicBuildStream] Stream ended without done event, polling server...')
+      const polled = await pollForCompletion()
+      if (polled) return polled
+      throw new Error('Magic Build stream ended without completion — please retry')
     }
 
     throw new Error('SSE stream ended without a done event')

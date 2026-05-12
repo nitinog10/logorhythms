@@ -948,6 +948,23 @@ function GeneratedAppStrip({
       toast.success('Magic build complete')
       onChanged()
     } catch (e: any) {
+      // The stream may have failed but the build might have completed server-side.
+      // Check the project one more time before showing an error.
+      try {
+        const refreshed = await builder.getProject(projectId)
+        if (
+          refreshed.magic_build_status === 'ready' &&
+          refreshed.fullstack_files &&
+          Object.keys(refreshed.fullstack_files).length > 0
+        ) {
+          if (progressToastId !== undefined) toast.dismiss(progressToastId as string)
+          toast.success('Magic build complete')
+          onChanged()
+          return
+        }
+      } catch {
+        // ignore poll error, show the original error below
+      }
       if (progressToastId !== undefined) toast.dismiss(progressToastId as string)
       toast.error(e?.message || 'Magic build failed')
     } finally {
