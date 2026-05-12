@@ -1298,7 +1298,7 @@ export const builder = {
     // (covers the case where the SSE stream dropped but the server kept going)
     const pollForCompletion = async (): Promise<BuilderProject | null> => {
       onProgress?.({ status: 'progress', message: 'Connection interrupted — checking build status...' })
-      for (let i = 0; i < 12; i++) {
+      for (let i = 0; i < 60; i++) {
         await new Promise((r) => setTimeout(r, 5000))
         try {
           const proj = await request<BuilderProject>(`/builder/projects/${projectId}`)
@@ -1314,7 +1314,7 @@ export const builder = {
           onProgress?.({ status: 'progress', message: `Waiting for build to finish... (${(i + 1) * 5}s)` })
         } catch (pollErr: any) {
           // Network error during poll — keep trying
-          if (i === 11) throw pollErr
+          if (i === 59) throw pollErr
         }
       }
       return null // timed out
