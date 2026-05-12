@@ -1269,6 +1269,89 @@ export const builder = {
       method: 'POST',
     }),
 
+  /**
+   * Streaming version of Magic Build via SSE.
+   *
+   * Uses the `/magic-build-stream` endpoint which immediately sends a 200 OK
+   * response (flushing CORS headers to the browser) before Bedrock starts
+   * generating. This avoids the AWS App Runner 60-second request timeout that
+   * causes the browser to misreport a dropped connection as a "CORS error".
+   *
+   * @param projectId - The builder project to run magic build on
+   * @param onProgress - Called with each progress event from the server
+   * @returns The final BuilderProject when generation completes
+   */
+  magicBuildStream: async (
+    projectId: string,
+    onProgress?: (event: { status: string; message?: string; file_count?: number }) => void
+  ): Promise<BuilderProject> => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+    const url = `${publicApiBaseUrl}/builder/projects/${projectId}/magic-build-stream`
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      credentials: 'include',
+    })
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      throw new Error(err?.detail || `magic-build-stream failed (HTTP ${response.status})`)
+    }
+
+    if (!response.body) {
+      throw new Error('No response body for SSE stream')
+    }
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() ?? ''  // keep the incomplete last line
+
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (!trimmed.startsWith('data:')) continue
+        const json = trimmed.slice('data:'.length).trim()
+        if (!json) continue
+
+        let event: Record<string, unknown>
+        try {
+          event = JSON.parse(json)
+        } catch {
+          continue
+        }
+
+        const status = event.status as string
+        if (status === 'done') {
+          return event.project as BuilderProject
+        }
+        if (status === 'error') {
+          throw new Error((event.error as string) || 'Magic Build failed')
+        }
+        if (status === 'progress' || status === 'started') {
+          onProgress?.({
+            status,
+            message: event.message as string | undefined,
+            file_count: event.file_count as number | undefined,
+          })
+        }
+      }
+    }
+
+    throw new Error('SSE stream ended without a done event')
+  },
+
+
   saveProject: (projectId: string) =>
     request<{ success: boolean; saved_at: string; project_id: string }>(
       `/builder/projects/${projectId}/save`,

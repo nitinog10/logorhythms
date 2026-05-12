@@ -930,11 +930,25 @@ function GeneratedAppStrip({
 
   const runMagic = async () => {
     onGenerating('magic')
+    let progressToastId: string | number | undefined
     try {
-      await builder.magicBuild(projectId)
+      // Use streaming endpoint: immediately gets 200 OK so CORS headers arrive
+      // before Bedrock starts generating (avoids App Runner 60s timeout firing
+      // and the browser misreporting the dropped connection as a "CORS error").
+      await builder.magicBuildStream(projectId, (event) => {
+        if (event.status === 'started') {
+          progressToastId = toast.loading('Magic build started…')
+        } else if (event.status === 'progress' && event.message) {
+          if (progressToastId !== undefined) {
+            toast.loading(event.message, { id: progressToastId as string })
+          }
+        }
+      })
+      if (progressToastId !== undefined) toast.dismiss(progressToastId as string)
       toast.success('Magic build complete')
       onChanged()
     } catch (e: any) {
+      if (progressToastId !== undefined) toast.dismiss(progressToastId as string)
       toast.error(e?.message || 'Magic build failed')
     } finally {
       onGenerating(null)

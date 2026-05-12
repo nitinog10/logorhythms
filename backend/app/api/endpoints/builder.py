@@ -14,10 +14,12 @@ import json
 import uuid
 import logging
 import base64
-from typing import Optional, List, Dict, Any
+import asyncio
+from typing import Optional, List, Dict, Any, AsyncIterator
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Header, Body
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from fastapi import Depends
@@ -1496,6 +1498,142 @@ async def magic_build_project(
     save_builder_project(project)
 
     return project
+
+
+# ---------------------------------------------------------------------------
+# Magic Build Stream — SSE version that avoids App Runner 60s timeout
+# ---------------------------------------------------------------------------
+
+@router.post("/projects/{project_id}/magic-build-stream")
+async def magic_build_project_stream(
+    project_id: str,
+    authorization: str = Header(None),
+    _rate: None = Depends(RateLimiter("generate")),
+):
+    """
+    Streaming SSE version of magic-build.
+
+    Immediately emits a 200 OK with CORS headers (and a 'started' event)
+    before Bedrock begins generating — this prevents the AWS App Runner
+    60-second request timeout from firing mid-generation and being
+    misreported as a CORS error by the browser.
+
+    Event stream format (text/event-stream):
+        data: {"status": "started", "project_id": "..."}
+        data: {"status": "progress", "message": "Analysing screens..."}
+        data: {"status": "progress", "message": "Generating file 3/20...", "file_count": 3}
+        data: {"status": "done", "project": {...full project dict...}}
+        data: {"status": "error", "error": "..."}
+    """
+    from app.services.fullstack_generator import magic_build
+
+    user = await _guard(authorization)
+    project = load_builder_project(project_id)
+
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if project.get("user_id") != user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    async def _event_stream() -> AsyncIterator[str]:
+        """Async generator that drives the build and yields SSE-formatted strings."""
+        def _sse(payload: dict) -> str:
+            return f"data: {json.dumps(payload)}\n\n"
+
+        # ── Emit 'started' immediately so CORS headers flush to the browser ──
+        yield _sse({"status": "started", "project_id": project_id})
+        await asyncio.sleep(0)  # flush
+
+        # Mark building
+        project["magic_build_status"] = "building"
+        save_builder_project(project)
+
+        yield _sse({"status": "progress", "message": "Analysing screens and generating full-stack spec..."})
+        await asyncio.sleep(0)
+
+        try:
+            # Run the blocking magic_build on a thread so we can still yield
+            # heartbeat pings while it executes.
+            result_holder: Dict[str, Any] = {}
+            build_done = asyncio.Event()
+
+            async def _run_build() -> None:
+                try:
+                    result_holder["result"] = await magic_build(project)
+                except Exception as exc:
+                    result_holder["error"] = str(exc)
+                finally:
+                    build_done.set()
+
+            build_task = asyncio.ensure_future(_run_build())
+
+            # Heartbeat loop — keeps the SSE connection alive (prevents App
+            # Runner and proxies from closing an idle TCP connection).
+            heartbeat_interval = 20  # seconds
+            elapsed = 0
+            while not build_done.is_set():
+                try:
+                    await asyncio.wait_for(asyncio.shield(build_done.wait()), timeout=heartbeat_interval)
+                except asyncio.TimeoutError:
+                    elapsed += heartbeat_interval
+                    yield _sse({"status": "progress", "message": f"Still generating... ({elapsed}s elapsed)"})
+                    await asyncio.sleep(0)
+
+            await build_task  # re-raise if it raised
+
+            if "error" in result_holder:
+                project["magic_build_status"] = "error"
+                project["magic_build_error"] = result_holder["error"]
+                project["updated_at"] = datetime.now(timezone.utc).isoformat()
+                save_builder_project(project)
+                yield _sse({"status": "error", "error": result_holder["error"]})
+                return
+
+            result = result_holder.get("result", {})
+
+            if result.get("error"):
+                project["magic_build_status"] = "error"
+                project["magic_build_error"] = result["error"]
+            else:
+                project["fullstack_files"] = result.get("files", {})
+                project["fullstack_spec"] = result.get("spec", {})
+                project["magic_build_status"] = "ready"
+                project["magic_build_summary"] = {
+                    "file_count": result.get("file_count", 0),
+                    "models": result.get("models", []),
+                    "routes": result.get("routes", []),
+                    "pages": result.get("pages", []),
+                }
+                yield _sse({
+                    "status": "progress",
+                    "message": f"Generated {result.get('file_count', 0)} files. Saving...",
+                    "file_count": result.get("file_count", 0),
+                })
+                await asyncio.sleep(0)
+
+        except Exception as exc:
+            logger.error(f"Magic Build stream failed: {exc}")
+            project["magic_build_status"] = "error"
+            project["magic_build_error"] = str(exc)
+            project["updated_at"] = datetime.now(timezone.utc).isoformat()
+            save_builder_project(project)
+            yield _sse({"status": "error", "error": str(exc)[:500]})
+            return
+
+        project["updated_at"] = datetime.now(timezone.utc).isoformat()
+        save_builder_project(project)
+
+        yield _sse({"status": "done", "project": project})
+
+    return StreamingResponse(
+        _event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",   # tells nginx/ALB not to buffer the stream
+            "Connection": "keep-alive",
+        },
+    )
 
 
 # ---------------------------------------------------------------------------

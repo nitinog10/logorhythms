@@ -24,6 +24,40 @@ from app.monorepo_paths import default_workspace_dir
 
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# npm / npx binary resolution
+# ---------------------------------------------------------------------------
+# shutil.which() walks PATH at import time. On AWS App Runner the gunicorn
+# process may not inherit /usr/local/bin, so we list explicit fallbacks in
+# the order: Dockerfile COPY destination → nvm → system package manager.
+_NPM_CANDIDATES = [
+    shutil.which("npm"),
+    "/usr/local/bin/npm",
+    "/usr/bin/npm",
+]
+_NPX_CANDIDATES = [
+    shutil.which("npx"),
+    "/usr/local/bin/npx",
+    "/usr/bin/npx",
+]
+
+def _first_existing(candidates: list) -> str:
+    """Return the first candidate that exists on disk, else the last entry."""
+    for c in candidates:
+        if c and __import__('os').path.isfile(c):
+            return c
+    # Fall back to bare name so error messages stay readable
+    return candidates[-1] or "npm"
+
+_NPM_BIN: str = _first_existing(_NPM_CANDIDATES)
+_NPX_BIN: str = _first_existing(_NPX_CANDIDATES)
+
+# Directories to prepend to PATH so node/npm are always resolvable inside
+# subprocess environments spawned by gunicorn on App Runner / Linux containers.
+_NODE_PATH_DIRS = ["/usr/local/bin", "/usr/bin"]
+
+logger.info("[preview_runner] npm=%s  npx=%s", _NPM_BIN, _NPX_BIN)
+
 
 def nextjs_file_watch_env_for_studio() -> Dict[str, str]:
     """Env defaults so Next/webpack see file changes in Studio.
@@ -408,8 +442,19 @@ async def _run_npm_command(
 
     On Windows, npm is a batch script (.cmd), so we need shell=True
     or the full .cmd path. Using shell=True is simpler and more reliable.
+
+    On Linux/App Runner we enrich PATH so that /usr/local/bin (where the
+    Dockerfile COPY places node + npm) is always resolvable by the child
+    process even when gunicorn strips it from os.environ.
     """
     cmd_env = {**os.environ, **(env or {})}
+
+    # Ensure node binary directories are on PATH for Linux subprocesses
+    if not _IS_WINDOWS:
+        existing_path = cmd_env.get("PATH", "")
+        extra = ":".join(d for d in _NODE_PATH_DIRS if d not in existing_path)
+        if extra:
+            cmd_env["PATH"] = extra + (":" + existing_path if existing_path else "")
 
     try:
         if _IS_WINDOWS:
@@ -511,7 +556,7 @@ async def start_preview(
         if _needs_node_dependency_install(project_dir, "nextjs"):
             logger.info(f"Installing dependencies for {project_id}...")
             returncode, stdout, stderr = await _run_npm_command(
-                ["npm", "install", "--no-audit", "--no-fund"],
+                [_NPM_BIN, "install", "--no-audit", "--no-fund"],
                 cwd=str(project_dir),
                 timeout=120,
             )
@@ -531,7 +576,7 @@ async def start_preview(
         if prisma_schema.exists():
             try:
                 returncode, stdout, stderr = await _run_npm_command(
-                    ["npx", "prisma", "db", "push", "--skip-generate"],
+                    [_NPX_BIN, "prisma", "db", "push", "--skip-generate"],
                     cwd=str(project_dir),
                     timeout=30,
                     env={"DATABASE_URL": "file:./dev.db"},
@@ -559,8 +604,15 @@ async def start_preview(
         run_env = _merge_path_with_node_bin(project_dir, dict(os.environ))
         _apply_nextjs_watch_env(run_env, "nextjs")
 
+        # Enrich PATH so the dev server child process finds node/npm
+        if not _IS_WINDOWS:
+            existing_path = run_env.get("PATH", "")
+            extra = ":".join(d for d in _NODE_PATH_DIRS if d not in existing_path)
+            if extra:
+                run_env["PATH"] = extra + (":" + existing_path if existing_path else "")
+
         if _IS_WINDOWS:
-            cmd_str = f"npm run dev -- --hostname 127.0.0.1 --port {port}"
+            cmd_str = f"\"{_NPM_BIN}\" run dev -- --hostname 127.0.0.1 --port {port}"
             process = await asyncio.create_subprocess_shell(
                 cmd_str,
                 cwd=str(project_dir),
@@ -570,7 +622,7 @@ async def start_preview(
             )
         else:
             process = await asyncio.create_subprocess_exec(
-                "npm", "run", "dev", "--", "--port", str(port),
+                _NPM_BIN, "run", "dev", "--", "--port", str(port),
                 cwd=str(project_dir),
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
