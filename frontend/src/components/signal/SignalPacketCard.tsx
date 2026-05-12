@@ -80,8 +80,9 @@ export default function SignalPacketCard({ packet, repoFullName, onIssueCreated 
       )
       toast.success(`Issue #${result.issue_number} created`)
       onIssueCreated?.()
-    } catch {
-      toast.error('Failed to create GitHub issue')
+    } catch (err: any) {
+      const msg = err?.message || err?.detail || 'Failed to create GitHub issue'
+      toast.error(msg)
     } finally {
       setIsCreatingIssue(false)
     }

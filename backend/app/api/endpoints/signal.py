@@ -410,7 +410,21 @@ async def create_issue_from_signal(
             "title": issue_title,
         }
 
+    except GitHubAPIError as exc:
+        import logging
+        logging.getLogger(__name__).error(
+            "GitHub API error creating issue: status=%s, msg=%s, body=%s",
+            exc.status, str(exc), exc.response_body,
+        )
+        raise HTTPException(
+            status_code=exc.status,
+            detail=f"GitHub API error: {str(exc)}"
+        )
     except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(
+            "Unexpected error creating issue from signal: %s", str(e), exc_info=True,
+        )
         raise HTTPException(
             status_code=500,
             detail=f"Failed to create GitHub issue: {str(e)}"

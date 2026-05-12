@@ -404,7 +404,7 @@ erDiagram
 
 <div align="center">
 
-**Built with ❤️ by Team Logorhythms**
+**Built with ❤️ by Team Logorhythms![alt text](image.png)**
 
 *Transforming the way developers understand code — one walkthrough at a time.*
 
