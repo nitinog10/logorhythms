@@ -15,7 +15,6 @@ import {
   Sparkles,
   Type,
   Eye,
-  Link2,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -105,7 +104,6 @@ export default function SettingsPage() {
     { id: 'account', label: 'Account', icon: User },
     { id: 'appearance', label: 'Appearance', icon: Palette },
     { id: 'billing', label: 'Billing', icon: CreditCard },
-    { id: 'integrations', label: 'Integrations', icon: Link2, href: '/settings/integrations' },
   ]
 
   if (!mounted) {

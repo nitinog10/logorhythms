@@ -10,10 +10,7 @@ if sys.stderr.encoding != 'utf-8':
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 # Pin the Proactor event loop policy on Windows so asyncio subprocess works
-# inside FastAPI request handlers. Some uvicorn / Python combinations leave
-# the SelectorEventLoop active, which raises NotImplementedError when any
-# code tries `asyncio.create_subprocess_shell()` (the Studio launcher does).
-# Must be done at import time, before any event loop is created.
+# inside FastAPI request handlers.
 if sys.platform == "win32":
     import asyncio as _asyncio
     try:
@@ -38,7 +35,6 @@ from app.services.parser import ParserService
 from app.logging_config import configure_logging, TraceMiddleware, get_logger
 from app.middleware.idempotency import IdempotencyMiddleware
 from app.errors import ErrorCode, _error_body
-from app.services.runtime_manager import get_runtime_manager
 
 # Configure structured logging at module-load time.
 # Use JSON in production (non-debug), console-pretty in dev.
@@ -65,40 +61,10 @@ async def lifespan(app: FastAPI):
     app.state.parser = parser_service
     
     print("✅ DocuVerse services initialized successfully!")
-
-    # Runtime cleanup worker (Phase 1 reliability):
-    # - startup orphan recovery
-    # - periodic stale runtime/container cleanup
-    cleanup_manager = get_runtime_manager()
-    try:
-        await cleanup_manager.cleanup()
-    except Exception:
-        log.exception("runtime_cleanup_startup_failed")
-
-    async def _runtime_cleanup_loop():
-        settings = get_settings()
-        interval = max(15, int(settings.studio_runtime_cleanup_interval_seconds))
-        while True:
-            await asyncio.sleep(interval)
-            try:
-                await cleanup_manager.cleanup()
-            except asyncio.CancelledError:
-                raise
-            except Exception:
-                log.exception("runtime_cleanup_tick_failed")
-
-    cleanup_task = asyncio.create_task(_runtime_cleanup_loop(), name="studio-runtime-cleanup")
     
     yield
     
     # Cleanup on shutdown
-    cleanup_task.cancel()
-    try:
-        await cleanup_task
-    except asyncio.CancelledError:
-        pass
-    except Exception:
-        log.exception("runtime_cleanup_shutdown_failed")
     print("🛑 Shutting down DocuVerse services...")
 
 
@@ -234,9 +200,6 @@ if __name__ == "__main__":
     settings = get_settings()
     reload_extra = {}
     if settings.debug:
-        # Watch only ``backend/app``. Studio runs ``npm install`` under
-        # ``repos/`` and ``workspace/`` — full-tree reload would restart
-        # uvicorn mid-install and strand preview launches.
         reload_extra["reload_dirs"] = [str(_Path(__file__).resolve().parent)]
 
     uvicorn.run(

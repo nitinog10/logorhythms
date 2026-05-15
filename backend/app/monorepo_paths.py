@@ -1,5 +1,5 @@
 """
-Resolve machine-local directories for cloned repos + Studio workspaces.
+Resolve machine-local directories for cloned repos.
 
 Developer layout (Git forge monorepo): data lives at ``<repo-root>/docuverse_data``
 as a sibling of ``backend/``. That keeps ``npm install`` trees out of ``backend/`` so

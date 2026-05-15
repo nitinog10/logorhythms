@@ -10,7 +10,7 @@ import {
   ChevronLeft,
   LogOut,
   Crown,
-  Boxes,
+  FolderGit2,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
@@ -20,7 +20,7 @@ import PlanBadge from '@/components/billing/PlanBadge'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/studio', label: 'Studio', icon: Boxes },
+  { href: '/repositories', label: 'Repositories', icon: FolderGit2 },
   { href: '/walkthroughs', label: 'Walkthroughs', icon: Play },
   { href: '/signal', label: 'Signal', icon: Zap },
   { href: '/settings', label: 'Settings', icon: Settings },

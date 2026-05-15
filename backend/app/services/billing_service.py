@@ -36,7 +36,6 @@ PLAN_LIMITS = {
         "audio_quality": "browser",  # browser TTS only
         "team_sharing": False,
         "api_access": False,
-        "app_studio_projects": 1,
     },
     "pro": {
         "repos": -1,
@@ -48,7 +47,6 @@ PLAN_LIMITS = {
         "audio_quality": "elevenlabs",
         "team_sharing": False,
         "api_access": True,
-        "app_studio_projects": 5,
     },
     "team": {
         "repos": -1,
@@ -60,7 +58,6 @@ PLAN_LIMITS = {
         "audio_quality": "elevenlabs",
         "team_sharing": True,
         "api_access": True,
-        "app_studio_projects": 10,
     },
 }
 
@@ -85,7 +82,6 @@ FEATURE_NAMES = {
     "explains": "Inline Explanations",
     "repos": "Connected Repositories",
     "diagrams": "Architecture Diagrams",
-    "app_studio_projects": "App Studio Projects",
 }
 
 
