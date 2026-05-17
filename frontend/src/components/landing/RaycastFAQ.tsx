@@ -10,7 +10,7 @@ const faqs = [
   { q: 'How does DocuVerse generate walkthroughs?', a: 'DocuVerse clones your repo, parses every file with tree-sitter for accurate AST extraction, then uses AI to generate a clear, contextual narration for each file. Audio is synthesized with text-to-speech and synced to code highlighting.' },
   { q: 'Is my code secure?', a: 'Absolutely. Your code is processed in isolated sessions and never stored permanently. Private repos are accessed through secure GitHub OAuth tokens that you can revoke at any time.' },
   { q: 'Which languages are supported?', a: 'Python, TypeScript, JavaScript, Java, Go, Rust, Ruby, Kotlin, Swift, C++, C#, and more. Our tree-sitter engine supports 12+ languages with accurate scope and dependency extraction.' },
-  { q: 'Can I use DocuVerse in my IDE?', a: 'Yes! We offer a VS Code extension and an MCP server that works with Cursor and other AI-powered editors. Access walkthroughs, architecture diagrams, and impact analysis without leaving your IDE.' },
+  { q: 'Can I use DocuVerse in my IDE?', a: 'Yes! We offer an MCP server that works with Cursor and other AI-powered editors. Access walkthroughs, architecture diagrams, and impact analysis without leaving your IDE.' },
   { q: 'Is there a free plan?', a: 'Yes. You can get started for free with public repositories. Premium plans unlock private repos, team collaboration, priority audio generation, and the Signal feature for support ticket analysis.' },
 ]
 

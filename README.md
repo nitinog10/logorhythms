@@ -4,7 +4,7 @@
 
 ### The World's First Generative Media Documentation Engine
 
-**Stop reading code. Start watching it. Now with Voice-to-Code Support Copilot & VS Code Integration.**
+**Stop reading code. Start watching it. Now with Voice-to-Code Support Copilot.**
 
 [![Live Demo](https://img.shields.io/badge/🌐_Live_Demo-logorhythms.in-blue?style=for-the-badge)](https://logorhythms.in)
 [![Next.js](https://img.shields.io/badge/Next.js_14-black?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
@@ -59,11 +59,6 @@ The ultimate bridge between customer support and engineering:
 - **AI Code Mapping** — Traces user-reported bugs directly to the specific files and line numbers in your codebase that need fixing.
 - **Automated Issue Generation** — Converts grouped tickets into high-quality, structured GitHub Issues with proposed code fixes.
 
-### 💻 Official VS Code Extension
-DocuVerse lives where you work — straight inside your IDE:
-- **In-Editor Auto-Cast** — Watch narrated, audio-synced code walkthroughs without ever leaving your editor.
-- **Integrated Tooling** — Run impact analysis, visualize Mermaid diagrams, and generate repository documentation natively.
-- **Signal Webview Panel** — Manage support tickets, review AI-mapped code locations, and generate GitHub issues seamlessly.
 
 ### 🌌 Premium Cinematic UI & Motion Design
 - **High-End Dark Theme** — A stunning, highly-polished aesthetic inspired by modern, premium developer tools.
@@ -90,7 +85,7 @@ DocuVerse AI offers flexible pricing tailored for individual developers, growing
 | Tier | Price | Best For | Included Features |
 |---|---|---|---|
 | **Free / Indie** | $0/mo | Solo developers & Open Source | 1 Repo, 100 Walkthroughs/mo, Edge-TTS audio, standard models. |
-| **Pro / Team** | $29/mo/user | Small engineering teams | Unlimited repos, ElevenLabs Premium Voice, DocuVerse Signal Dashboard, VS Code Extension, GitHub Auto-Fix. |
+| **Pro / Team** | $29/mo/user | Small engineering teams | Unlimited repos, ElevenLabs Premium Voice, DocuVerse Signal Dashboard, GitHub Auto-Fix. |
 | **Enterprise** | Custom | Large MNCs & Enterprises | Dedicated AWS Bedrock tenancy, custom model fine-tuning, VPC deployment, SLA guarantee. |
 
 ### AWS Self-Hosted Cost Breakdown (Estimated)
@@ -125,9 +120,8 @@ If deploying the open-source version on your own AWS infrastructure, typical cos
 
 ```mermaid
 flowchart TB
-    subgraph Client["🖥️ Clients (Web + VS Code)"]
+    subgraph Client["🖥️ Clients (Web)"]
         UI[Next.js UI + Zustand State]
-        VSCode[VS Code Extension]
         Signal[Signal Dashboard]
         Player[Walkthrough Player]
         FileExp[File Explorer]
@@ -162,8 +156,6 @@ flowchart TB
 
     UI --> Auth
     UI --> RepoMgr
-    VSCode --> Auth
-    VSCode --> RepoMgr
     Signal --> RepoMgr
     Player --> ScriptGen
     Player --> AudioGen
@@ -321,14 +313,6 @@ npm install
 npm run dev
 ```
 
-### 4. VS Code Extension Setup
-```bash
-cd docuverse-vscode
-npm install
-npm run compile
-# Press F5 in VS Code to launch the Extension Development Host
-```
-
 ---
 
 ## 📁 Project Structure
@@ -342,13 +326,6 @@ DocuVerse-Ai/
 │   │   ├── services/                 # AWS Bedrock, DynamoDB, Tree-sitter, Signal Logic
 │   │   └── models/                   # Pydantic schemas
 │   └── repos/                        # Cloned repos
-│
-├── docuverse-vscode/                 # Official VS Code Extension
-│   ├── src/                          # Extension source code
-│   │   ├── extension.ts              # Activation logic & command registration
-│   │   ├── webviews/                 # React-based webviews (Signal, Walkthrough)
-│   │   └── auth/                     # GitHub authentication integration
-│   ├── package.json                  # Extension manifest & commands
 │
 ├── frontend/                         # Next.js 14 + TypeScript
 │   ├── src/

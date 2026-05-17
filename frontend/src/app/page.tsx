@@ -68,7 +68,7 @@ export default function HomePage() {
               { title: 'Beyond static docs', desc: 'Traditional docs get stale. DocuVerse generates living walkthroughs that update with your code, synced to AI narration and interactive diagrams.' },
               { title: 'Audio-first understanding', desc: 'Listen to an AI senior engineer explain your code while you follow along visually. Learn on your commute, during lunch, or while reviewing PRs.' },
               { title: 'Onboard 10x faster', desc: 'New engineers understand your codebase in hours, not weeks. Every function, class, and dependency is narrated with clear, contextual explanations.' },
-              { title: 'IDE-native experience', desc: 'Access walkthroughs directly in VS Code and Cursor via our MCP server. No context-switching, no browser tabs — just understanding.' },
+              { title: 'IDE-native experience', desc: 'Access walkthroughs directly in Cursor via our MCP server. No context-switching, no browser tabs — just understanding.' },
             ].map((item, i) => (
               <motion.div key={item.title}
                 className="group relative rounded-2xl p-8 sm:p-10 transition-all duration-300"
